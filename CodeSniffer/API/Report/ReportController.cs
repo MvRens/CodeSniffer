@@ -6,9 +6,9 @@ using CodeSniffer.Repository.Reports;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace CodeSniffer.Controller
+namespace CodeSniffer.API.Report
 {
-    [Route("/reports")]
+    [Route("/api/reports")]
     public class ReportController : ControllerBase
     {
         private readonly IReportRepository reportRepository;
@@ -20,7 +20,7 @@ namespace CodeSniffer.Controller
         }
 
 
-        [HttpGet]
+        [HttpGet("definitionstatus")]
         [Authorize(Policy = CsPolicyNames.Developers)]
         public async ValueTask<IReadOnlyDictionary<string, string>> List()
         {

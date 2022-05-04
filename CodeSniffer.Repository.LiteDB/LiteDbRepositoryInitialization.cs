@@ -1,5 +1,6 @@
 ﻿using CodeSniffer.Repository.LiteDB.Checks;
 using CodeSniffer.Repository.LiteDB.Reports;
+using CodeSniffer.Repository.LiteDB.Source;
 using LiteDB;
 
 namespace CodeSniffer.Repository.LiteDB
@@ -10,6 +11,7 @@ namespace CodeSniffer.Repository.LiteDB
         {
             await LiteDbDefinitionRepository.Initialize(database);
             await LiteDbReportRepository.Initialize(database);
+            await LiteDbSourceCodeStatusRepository.Initialize(database);
         }
     }
 }

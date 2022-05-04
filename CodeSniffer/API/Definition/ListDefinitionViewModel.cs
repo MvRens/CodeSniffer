@@ -1,4 +1,4 @@
-﻿namespace CodeSniffer.ViewModel.Checks
+﻿namespace CodeSniffer.API.Definition
 {
     public class ListDefinitionViewModel
     {

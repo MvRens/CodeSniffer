@@ -4,12 +4,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using CodeSniffer.Auth;
 using CodeSniffer.Authentication;
+using CodeSniffer.Facade;
 using CodeSniffer.Plugins;
 using CodeSniffer.Repository.Checks;
 using CodeSniffer.Repository.LiteDB;
 using CodeSniffer.Repository.LiteDB.Checks;
 using CodeSniffer.Repository.LiteDB.Reports;
+using CodeSniffer.Repository.LiteDB.Source;
 using CodeSniffer.Repository.Reports;
+using CodeSniffer.Repository.Source;
+using CodeSniffer.Sniffer;
 using JsonWebToken;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -76,7 +80,7 @@ namespace CodeSniffer
                 container = CreateContainer(appSettings);
                 container.RegisterInstance(appSettings);
                 container.RegisterInstance(logger);
-                container.RegisterInstance(pluginManager);
+                container.RegisterInstance(typeof(IPluginManager), pluginManager);
 
                 host = CreateHost(args, logger, container, appSettings);
 
@@ -153,6 +157,8 @@ namespace CodeSniffer
             var container = new Container();
             container.Options.DefaultScopedLifestyle = new AsyncScopedLifestyle();
 
+            var instancePerDependencyLifestyle = new InstancePerDependencyLifestyle();
+
             var key = SymmetricJwk.FromBase64Url(appSettings.JWT.Secret);
             var authenticationProvider = new JwtAuthenticationProvider(appSettings.JWT.Issuer, appSettings.JWT.Audience, key, SignatureAlgorithm.HS256);
             container.RegisterInstance<IAuthenticationProvider>(authenticationProvider);
@@ -165,9 +171,14 @@ namespace CodeSniffer
                 return pool;
             });
 
-            container.Register<ILiteDbConnectionString>(() => new StaticLiteDbConnectionString(appSettings.DbConnectionString));
-            container.Register<IDefinitionRepository, LiteDbDefinitionRepository>();
-            container.Register<IReportRepository, LiteDbReportRepository>();
+            container.Register<ILiteDbConnectionString>(() => new StaticLiteDbConnectionString(appSettings.DbConnectionString), instancePerDependencyLifestyle);
+            container.Register<IDefinitionRepository, LiteDbDefinitionRepository>(instancePerDependencyLifestyle);
+            container.Register<IReportRepository, LiteDbReportRepository>(instancePerDependencyLifestyle);
+            container.Register<ISourceCodeStatusRepository, LiteDbSourceCodeStatusRepository>(instancePerDependencyLifestyle);
+
+            container.RegisterSingleton<IRepositoryMonitor, RepositoryMonitor>();
+            container.RegisterSingleton<IJobRunner, JobRunner>();
+            container.RegisterSingleton<IJobResultHandler, JobResultHandler>();
 
             return container;
         }

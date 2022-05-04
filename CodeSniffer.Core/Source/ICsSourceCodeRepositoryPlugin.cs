@@ -5,7 +5,7 @@ using Serilog;
 namespace CodeSniffer.Core.Source
 {
     /// <summary>
-    /// Implements a plugin which can create ICsSourceCodeRepositoryr instances.
+    /// Implements a plugin which can create ICsSourceCodeRepository instances.
     /// </summary>
     public interface ICsSourceCodeRepositoryPlugin : ICsPlugin
     {

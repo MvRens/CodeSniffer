@@ -100,7 +100,7 @@ namespace CodeSniffer
                 swaggerUIOptions.SwaggerEndpoint("v1/swagger.json", "CodeSniffer API v1");
             });
 
-            var hasFrontend = UseFrontend(app, "/", "frontend/dist", out var frontendPath);
+            var hasFrontend = UseFrontend(app, "", "frontend/dist", out var frontendPath);
 
             app.UseRouting();
             app.UseCors();
@@ -109,7 +109,7 @@ namespace CodeSniffer
 
             app.UseEndpoints(endpoints =>
             {
-                endpoints.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
+                endpoints.MapControllers();
 
                 // Vue-Router uses history mode, map all unknown URLs for the frontend back to index.html
                 if (hasFrontend)

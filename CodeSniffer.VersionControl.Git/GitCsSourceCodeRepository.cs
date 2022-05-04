@@ -1,4 +1,5 @@
 ﻿using System.Runtime.CompilerServices;
+using CodeSniffer.Core.Plugin;
 using CodeSniffer.Core.Source;
 using LibGit2Sharp;
 using Serilog;
@@ -11,6 +12,10 @@ namespace CodeSniffer.SourceCodeRepository.Git
         private readonly GitCsSourceCodeRepositoryOptions options;
 
 
+        public string Id => CsIdHasher.Create(options.Url ?? "");
+        public string Name => options.Url ?? "";
+
+
         public GitCsSourceCodeRepository(ILogger logger, GitCsSourceCodeRepositoryOptions options)
         {
             this.logger = logger;
@@ -19,6 +24,7 @@ namespace CodeSniffer.SourceCodeRepository.Git
 
 
         private const string BranchNamePrefix = @"refs/heads/";
+
 
         public async IAsyncEnumerable<ICsSourceCodeRevision> GetRevisions([EnumeratorCancellation] CancellationToken cancellationToken)
         {
@@ -70,6 +76,7 @@ namespace CodeSniffer.SourceCodeRepository.Git
         private class GitCsSourceCodeRevision : ICsSourceCodeRevision
         {
             public string Id => Sha;
+            public string Name => Sha;
 
             public string Sha { get; }
             public string BranchName { get; }

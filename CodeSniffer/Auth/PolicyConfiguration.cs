@@ -7,8 +7,8 @@ namespace CodeSniffer.Auth
     {
         public static void Apply(AuthorizationOptions options)
         {
-            options.LinkRoles(CsPolicyNames.Developers, CsRoleNames.Developer);
-            options.LinkRoles(CsPolicyNames.Admins, CsRoleNames.Developer, CsRoleNames.Admin);
+            options.LinkRoles(CsPolicyNames.Developers, CsRoleNames.Developer, CsRoleNames.Admin);
+            options.LinkRoles(CsPolicyNames.Admins, CsRoleNames.Admin);
         }
 
 

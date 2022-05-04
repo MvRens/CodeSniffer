@@ -11,6 +11,12 @@
         /// <remarks>
         /// Include only as much information as required to make it unique. Should not be used to store additional metadata.
         /// </remarks>
-        public string Id { get; }
+        string Id { get; }
+
+
+        /// <summary>
+        /// The name of the revision for display purposes.
+        /// </summary>
+        string Name { get; }
     }
 }

@@ -3,9 +3,10 @@ using CodeSniffer.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace CodeSniffer.Controller
+namespace CodeSniffer.API.Authentication
 {
     [ApiController]
+    [Route("/api")]
     public class AuthenticationController : ControllerBase
     {
         private readonly IAuthenticationProvider authenticationProvider;
@@ -17,7 +18,7 @@ namespace CodeSniffer.Controller
         }
 
 
-        [HttpPost("/login")]
+        [HttpPost("login")]
         public ActionResult<LoginResponse> Login(LoginRequest request)
         {
             if (!authenticationProvider.Validate(request.Username, request.Password, out var token))
@@ -27,7 +28,7 @@ namespace CodeSniffer.Controller
         }
 
 
-        [HttpPost("/login/validate")]
+        [HttpPost("login/validate")]
         [Authorize]
         public ActionResult Validate()
         {
@@ -38,7 +39,7 @@ namespace CodeSniffer.Controller
 
     public class LoginRequest
     {
-        [Required(AllowEmptyStrings = false)] 
+        [Required(AllowEmptyStrings = false)]
         public string Username { get; set; } = null!;
 
         [Required(AllowEmptyStrings = false)] 

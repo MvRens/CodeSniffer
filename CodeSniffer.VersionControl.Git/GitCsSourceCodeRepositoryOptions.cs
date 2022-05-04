@@ -7,6 +7,8 @@ namespace CodeSniffer.SourceCodeRepository.Git
     {
         public string? Url { get; set; }
 
+        // TODO credentials
+
 
         public static GitCsSourceCodeRepositoryOptions Default()
         {

@@ -13,25 +13,30 @@ namespace CodeSniffer
         public AppSettingsLog Log { get; } = new();
         public AppSettingsJWT JWT { get; } = new();
 
-        public string DbConnectionString { get; }
+        public string DbConnectionString { get; set; }
+        public string CheckoutPath { get; set; }
+        public int ScanInterval { get; set; } = 5;
 
 
         public AppSettings()
         {
+            string appDataPath;
+            Func<string, string> p;
+
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                var appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), @"CodeSniffer");
-
-                PluginPaths = new[] { Path.Combine(appDataPath, @"Plugins") };
-                DbConnectionString = Path.Combine(appDataPath, @"CodeSniffer.litedb");
+                appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), @"CodeSniffer");
+                p = v => v;
             }
             else
             {
-                const string dataPath = @"/var/lib/codesniffer";
-
-                PluginPaths = new[] { Path.Combine(dataPath, @"plugins") };
-                DbConnectionString = Path.Combine(dataPath, @"codesniffer.litedb");
+                appDataPath = @"/var/lib/codesniffer";
+                p = v => v.ToLower();
             }
+
+            PluginPaths = new[] { Path.Combine(appDataPath, p(@"Plugins")) };
+            DbConnectionString = Path.Combine(appDataPath, p(@"CodeSniffer.litedb"));
+            CheckoutPath = Path.Combine(Path.GetTempPath(), p(@"CodeSniffer"));
         }
     }
 

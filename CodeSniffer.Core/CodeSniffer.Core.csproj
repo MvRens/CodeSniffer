@@ -5,6 +5,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <Version>0.0.1</Version>
+    <Authors>Mark van Renswoude</Authors>
+    <Company />
+    <Description>Core package required for writing CodeSniffer plugins.</Description>
+    <PackageLicenseExpression>Unlicense</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/MvRens/CodeSniffer</PackageProjectUrl>
   </PropertyGroup>
 
   <ItemGroup>

@@ -34,10 +34,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Sniffer\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\CodeSniffer.Authentication\CodeSniffer.Authentication.csproj" />
     <ProjectReference Include="..\CodeSniffer.Core\CodeSniffer.Core.csproj" />
     <ProjectReference Include="..\CodeSniffer.Repository.LiteDB\CodeSniffer.Repository.LiteDB.csproj" />

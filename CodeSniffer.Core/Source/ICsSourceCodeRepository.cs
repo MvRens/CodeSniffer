@@ -6,6 +6,20 @@
     public interface ICsSourceCodeRepository
     {
         /// <summary>
+        /// The unique Id of this repository for the purpose of persisting the state.
+        /// </summary>
+        /// <remarks>
+        /// Include only as much information as required to make it unique. The same Id should be
+        /// returned for the same configuration.
+        /// </remarks>
+        string Id { get; }
+
+        /// <summary>
+        /// The name of the source code repository for display purposes.
+        /// </summary>
+        string Name { get; }
+
+        /// <summary>
         /// Queries the source code repository for revisions available to analyze.
         /// </summary>
         /// <remarks>

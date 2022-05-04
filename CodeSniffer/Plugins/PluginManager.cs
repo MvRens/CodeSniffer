@@ -117,10 +117,10 @@ namespace CodeSniffer.Plugins
                         foreach (var pluginType in pluginClasses)
                         {
                             var pluginAttribute = pluginType.GetCustomAttribute<CsPluginAttribute>()!;
-                            if (loadedPlugins.ContainsKey(pluginAttribute.Name))
+                            if (loadedPlugins.ContainsKey(pluginAttribute.Id))
                             {
                                 logger.Warning("Duplicate plugin name {name}, version from {filename} skipped",
-                                    pluginAttribute.Name, assemblyFilename);
+                                    pluginAttribute.Id, assemblyFilename);
                                 continue;
                             }
 
@@ -133,7 +133,7 @@ namespace CodeSniffer.Plugins
                             }
 
                             var pluginInstance = (ICsPlugin)Activator.CreateInstance(pluginType)!;
-                            loadedPlugins.Add(pluginAttribute.Name, new LoadedPlugin(pluginContext, pluginInstance));
+                            loadedPlugins.Add(pluginAttribute.Id, new LoadedPlugin(pluginContext, new PluginInfo(pluginAttribute.Id, pluginInstance)));
                             keepContext = true;
                         }
                     }
@@ -155,7 +155,7 @@ namespace CodeSniffer.Plugins
         }
 
 
-        public IEnumerator<ICsPlugin> GetEnumerator()
+        public IEnumerator<ICsPluginInfo> GetEnumerator()
         {
             return loadedPlugins.Values.Select(p => p.Plugin).GetEnumerator();
         }
@@ -167,7 +167,7 @@ namespace CodeSniffer.Plugins
         }
 
 
-        public ICsPlugin? ByName(string name)
+        public ICsPluginInfo? ByName(string name)
         {
             return loadedPlugins.TryGetValue(name, out var loadedPlugin)
                 ? loadedPlugin.Plugin
@@ -175,7 +175,7 @@ namespace CodeSniffer.Plugins
         }
 
 
-        public IEnumerable<T> ByType<T>() where T : ICsPlugin
+        public IEnumerable<T> ByType<T>() where T : ICsPluginInfo
         {
             return loadedPlugins.Values
                 .Where(p => p.Plugin.GetType().IsAssignableTo(typeof(T)))
@@ -194,10 +194,10 @@ namespace CodeSniffer.Plugins
         private readonly struct LoadedPlugin
         {
             private readonly PluginLoadContext loadContext;
-            public ICsPlugin Plugin { get; }
+            public ICsPluginInfo Plugin { get; }
 
 
-            public LoadedPlugin(PluginLoadContext loadContext, ICsPlugin plugin)
+            public LoadedPlugin(PluginLoadContext loadContext, ICsPluginInfo plugin)
             {
                 this.loadContext = loadContext;
                 Plugin = plugin;
@@ -206,6 +206,20 @@ namespace CodeSniffer.Plugins
             public void Unload()
             {
                 loadContext.Unload();
+            }
+        }
+
+
+        private class PluginInfo : ICsPluginInfo
+        {
+            public string Id { get; }
+            public ICsPlugin Plugin { get; }
+
+
+            public PluginInfo(string id, ICsPlugin plugin)
+            {
+                Plugin = plugin;
+                Id = id;
             }
         }
     }

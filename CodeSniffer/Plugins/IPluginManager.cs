@@ -3,9 +3,9 @@ using CodeSniffer.Core.Plugin;
 
 namespace CodeSniffer.Plugins
 {
-    public interface IPluginManager : IEnumerable<ICsPlugin>
+    public interface IPluginManager : IEnumerable<ICsPluginInfo>
     {
-        ICsPlugin? ByName(string name);
-        IEnumerable<T> ByType<T>() where T : ICsPlugin;
+        ICsPluginInfo? ByName(string name);
+        IEnumerable<T> ByType<T>() where T : ICsPluginInfo;
     }
 }

@@ -16,16 +16,16 @@ namespace CodeSniffer.Core.Plugin
         /// Identifies the plugin for use in configuration files.
         /// </summary>
         /// <remarks>
-        /// Should be a JSON-friendly name and stable between versions of the same plugin.
+        /// Should be a JSON-friendly id and stable between versions of the same plugin.
         /// Plugin names must be unique per type of plugin.
         /// </remarks>
-        public string Name { get; }
+        public string Id { get; }
 
 
         /// <inheritdoc />
-        public CsPluginAttribute(string name)
+        public CsPluginAttribute(string id)
         {
-            Name = name;
+            Id = id;
         }
     }
 }
