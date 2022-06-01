@@ -3,7 +3,9 @@ import { useLogin } from '../store/login';
 
 import Home from '../views/Home.vue';
 import Login from '../views/Login.vue';
+import Logout from '../views/Logout.vue';
 import Definition from '../views/Definition.vue';
+import Users from '../views/Users.vue';
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -14,7 +16,18 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/login',
     name: 'Login',
-    component: Login
+    component: Login,
+    meta: {
+      hideMenu: true
+    }
+  },
+  {
+    path: '/logout',
+    name: 'Logout',
+    component: Logout,
+    meta: {
+      hideMenu: true
+    }
   },
 
   {
@@ -27,6 +40,12 @@ const routes: Array<RouteRecordRaw> = [
     name: 'EditDefinition',
     component: Definition,
     props: true
+  },
+
+  {
+    path: '/users',
+    name: 'Users',
+    component: Users
   }
 ];
 

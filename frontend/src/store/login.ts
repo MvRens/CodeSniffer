@@ -1,5 +1,6 @@
 import { Ref, ref } from 'vue';
 import Cookies from 'js-cookie';
+import * as jose from 'jose'
 
 const bearerToken = ref<string | null>(null);
 
@@ -15,6 +16,7 @@ export function useLogin(): Login
     loggedIn,
     login,
     logout,
+    isAdmin,
 
     bearerToken
   };
@@ -27,6 +29,8 @@ export interface Login
 
   login(token: string): void;
   logout(): void;
+
+  isAdmin(): void;
 
   bearerToken: Ref<string | null>;
 }
@@ -49,4 +53,24 @@ function logout()
 {
   bearerToken.value = null;
   Cookies.remove(cookieName);
+}
+
+
+function decodePayload(): jose.JWTPayload | null
+{
+  if (!loggedIn())
+    return null;
+
+  return jose.decodeJwt(bearerToken.value!);
+}
+
+
+function isAdmin(): boolean
+{
+  const payload = decodePayload();
+  if (payload === null)
+    return false;
+
+  const role = (payload as any).role;
+  return role === "admin";
 }

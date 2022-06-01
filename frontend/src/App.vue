@@ -1,7 +1,35 @@
 <template>
+  <div v-if="showMenu" class="menu">
+    <div class="container">
+      <router-link :to="{ name: 'Home' }">{{ t('menu.home') }}</router-link>
+      <router-link :to="{ name: 'Users' }" v-if="isAdmin">{{ t('menu.users') }}</router-link>
+      <router-link :to="{ name: 'Logout' }" class="logout">{{ t('menu.logout') }}</router-link>
+    </div>
+  </div>
   <router-view />
 </template>
 
+
+<i18n lang="yaml">
+en:
+  menu:
+    home: "Dashboard"
+    users: "Users"
+    logout: "Logout"
+</i18n>
+
+<script lang="ts" setup>
+import { computed } from 'vue';
+import router from '@/router';
+import { useI18n } from 'vue-i18n';
+import { useLogin } from "@/store/login";
+
+const { t } = useI18n();
+const login = useLogin();
+
+const showMenu = computed(() => !router.currentRoute.value.meta || !router.currentRoute.value.meta.hideMenu);
+const isAdmin = computed(() => login.isAdmin());
+</script>
 
 <style lang="scss">
 @font-face {
@@ -16,6 +44,36 @@
 @import "skeleton-css/css/normalize";
 @import "skeleton-css/css/skeleton";
 @import "awesome-notifications/dist/style.css";
+
+
+.menu
+{
+  background: black;
+  margin-bottom: 1em;
+
+  .container
+  {
+    display: flex;
+  }
+
+  a
+  {
+    display: inline-block;
+    color: white;
+    padding: .5em;
+    text-decoration: none;
+
+    &:hover
+    {
+      background-color: #404040;
+    }
+
+    &.logout
+    {
+      margin-left: auto;
+    }
+  }
+}
 
 
 .button.disabled, .button.disabled:hover, input[type=submit].disabled

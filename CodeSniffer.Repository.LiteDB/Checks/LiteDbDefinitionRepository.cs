@@ -1,5 +1,6 @@
 ﻿using System.Text.Json.Nodes;
 using CodeSniffer.Repository.Checks;
+using JetBrains.Annotations;
 using LiteDB;
 
 namespace CodeSniffer.Repository.LiteDB.Checks
@@ -93,7 +94,7 @@ namespace CodeSniffer.Repository.LiteDB.Checks
                 return;
 
 
-            var archiveCollection = connection.Database.GetCollection<DefinitionRecord>(DefinitionArchiveCollection);
+            var archiveCollection = connection.Database.GetCollection<ArchivedDefinitionRecord>(DefinitionArchiveCollection);
             archiveCollection.Insert(new ArchivedDefinitionRecord(
                 ObjectId.NewObjectId(),
                 currentRecord.Id,
@@ -132,7 +133,7 @@ namespace CodeSniffer.Repository.LiteDB.Checks
                 currentRecord.Sources,
                 currentRecord.Checks);
 
-            var archiveCollection = connection.Database.GetCollection<DefinitionRecord>(DefinitionArchiveCollection);
+            var archiveCollection = connection.Database.GetCollection<ArchivedDefinitionRecord>(DefinitionArchiveCollection);
             archiveCollection.Insert(removedRecord);
 
             collection.Delete(recordId);
@@ -184,6 +185,7 @@ namespace CodeSniffer.Repository.LiteDB.Checks
         }
 
 
+        [UsedImplicitly]
         private class DefinitionRecord
         {
             [BsonId] 
@@ -192,15 +194,11 @@ namespace CodeSniffer.Repository.LiteDB.Checks
             public string Name { get; }
             public int Version { get; }
             public string Author { get; }
-            // ReSharper disable once MemberCanBePrivate.Local - will be used later, probably
-            // ReSharper disable once UnusedAutoPropertyAccessor.Local
             public string? RemovedBy { get; }
             public DefinitionSourceRecord[] Sources { get; }
             public DefinitionCheckRecord[] Checks { get; }
 
 
-            // ReSharper disable once UnusedMember.Local - by BsonMapper
-            // ReSharper disable once MemberCanBeProtected.Local
             [BsonCtor]
             public DefinitionRecord(ObjectId id, string name, int version, string author, string? removedBy, BsonArray sources, BsonArray checks)
             {
@@ -235,11 +233,11 @@ namespace CodeSniffer.Repository.LiteDB.Checks
         }
 
 
+        [UsedImplicitly]
         private class ArchivedDefinitionRecord : DefinitionRecord
         {
             public ObjectId OriginalId { get; }
 
-            // ReSharper disable once UnusedMember.Local - by BsonMapper
             [BsonCtor]
             public ArchivedDefinitionRecord(ObjectId id, ObjectId originalId, string name, int version, string author, string? removedBy, BsonArray sources, BsonArray checks)
                 : base(id, name, version, author, removedBy, sources, checks)
@@ -333,7 +331,7 @@ namespace CodeSniffer.Repository.LiteDB.Checks
         }
 
 
-        // ReSharper disable once ClassNeverInstantiated.Local - by LiteDB
+        [UsedImplicitly]
         private class DefinitionListRecord
         {
             [BsonId]

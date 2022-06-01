@@ -149,7 +149,7 @@ namespace CodeSniffer.Sniffer
 
         private ICsSourceCodeRepository? GetSourceCodeRepository(CsDefinitionSource source)
         {
-            return pluginManager.ByName(source.PluginName) is ICsSourceCodeRepositoryPlugin plugin 
+            return pluginManager.ByName(source.PluginName)?.Plugin is ICsSourceCodeRepositoryPlugin plugin 
                 ? plugin.Create(logger, source.Configuration)
                 : null;
         }

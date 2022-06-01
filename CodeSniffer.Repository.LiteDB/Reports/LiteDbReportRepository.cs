@@ -1,5 +1,6 @@
 ﻿using CodeSniffer.Core.Sniffer;
 using CodeSniffer.Repository.Reports;
+using JetBrains.Annotations;
 using LiteDB;
 
 namespace CodeSniffer.Repository.LiteDB.Reports
@@ -55,6 +56,7 @@ namespace CodeSniffer.Repository.LiteDB.Reports
             var record = new ReportRecord(
                 ObjectId.NewObjectId(), 
                 new ObjectId(definitionId), 
+                DateTime.UtcNow,
                 result,
                 report.Configuration?.ToDictionary(p => p.Key, p => p.Value),
                 assets.ToArray()
@@ -105,18 +107,18 @@ namespace CodeSniffer.Repository.LiteDB.Reports
             public ObjectId Id { get; }
 
             public ObjectId DefinitionId { get; }
+            public DateTime Timestamp { get; }
             public CsReportResult Result { get; }
             public IDictionary<string, string>? Configuration { get; }
             public ReportAssetRecord[] Assets { get; }
 
-            // TODO timestamp
-
 
             [BsonCtor]
-            public ReportRecord(ObjectId id, ObjectId definitionId, CsReportResult result, IDictionary<string, string>? configuration, ReportAssetRecord[] assets)
+            public ReportRecord(ObjectId id, ObjectId definitionId, DateTime timestamp, CsReportResult result, IDictionary<string, string>? configuration, ReportAssetRecord[] assets)
             {
                 Id = id;
                 DefinitionId = definitionId;
+                Timestamp = timestamp;
                 Result = result;
                 Configuration = configuration;
                 Assets = assets;
