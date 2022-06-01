@@ -1,5 +1,8 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System;
+using System.Diagnostics.CodeAnalysis;
+using System.Threading.Tasks;
 using CodeSniffer.Authentication;
+using CodeSniffer.Repository.Users;
 using JsonWebToken;
 
 namespace CodeSniffer.Auth
@@ -10,25 +13,26 @@ namespace CodeSniffer.Auth
         private readonly string? audience;
         private readonly Jwk key;
         private readonly SignatureAlgorithm signatureAlgorithm;
+        private readonly Func<IUserRepository> userRepositoryFactory;
 
 
-        public JwtAuthenticationProvider(string issuer, string? audience, Jwk key, SignatureAlgorithm signatureAlgorithm)
+        public JwtAuthenticationProvider(string issuer, string? audience, Jwk key, SignatureAlgorithm signatureAlgorithm, Func<IUserRepository> userRepositoryFactory)
         {
             this.issuer = issuer;
             this.audience = audience;
             this.key = key;
             this.signatureAlgorithm = signatureAlgorithm;
+            this.userRepositoryFactory = userRepositoryFactory;
         }
 
 
-        public bool Validate(string username, string password, [NotNullWhen(true)]out string? token)
+        public async ValueTask<string?> Validate(string username, string password)
         {
-            // TODO check user in db
-            if (username != "admin")
-            {
-                token = null;
-                return false;
-            }
+            var userRepository = userRepositoryFactory();
+            var user = await userRepository.ValidateLogin(username, password);
+
+            if (user == null)
+                return null;
 
             var descriptor = new JwsDescriptor(key, signatureAlgorithm)
             {
@@ -37,8 +41,9 @@ namespace CodeSniffer.Auth
                     { JwtClaimNames.Iat, EpochTime.UtcNow },
                     { JwtClaimNames.Exp, EpochTime.UtcNow + EpochTime.OneHour },
                     { JwtClaimNames.Iss, issuer },
-                    { JwtClaimNames.Sub, username },
-                    { CsJwtClaimNames.Role, CsRoleNames.Admin }
+                    { JwtClaimNames.Sub, user.Username },
+                    { CsJwtClaimNames.Name, user.DisplayName },
+                    { CsJwtClaimNames.Role, user.Role }
                 }
             };
 
@@ -46,8 +51,7 @@ namespace CodeSniffer.Auth
                 descriptor.Payload.Add(JwtClaimNames.Aud, audience);
 
             var writer = new JwtWriter();
-            token = writer.WriteTokenString(descriptor);
-            return true;
+            return writer.WriteTokenString(descriptor);
         }
     }
 }

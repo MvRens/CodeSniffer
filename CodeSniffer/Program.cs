@@ -11,8 +11,10 @@ using CodeSniffer.Repository.LiteDB;
 using CodeSniffer.Repository.LiteDB.Checks;
 using CodeSniffer.Repository.LiteDB.Reports;
 using CodeSniffer.Repository.LiteDB.Source;
+using CodeSniffer.Repository.LiteDB.Users;
 using CodeSniffer.Repository.Reports;
 using CodeSniffer.Repository.Source;
+using CodeSniffer.Repository.Users;
 using CodeSniffer.Sniffer;
 using JsonWebToken;
 using Microsoft.Extensions.Hosting;
@@ -163,14 +165,14 @@ namespace CodeSniffer
             var instancePerDependencyLifestyle = new InstancePerDependencyLifestyle();
 
             var key = SymmetricJwk.FromBase64Url(appSettings.JWT.Secret);
-            var authenticationProvider = new JwtAuthenticationProvider(appSettings.JWT.Issuer, appSettings.JWT.Audience, key, SignatureAlgorithm.HS256);
+            var authenticationProvider = new JwtAuthenticationProvider(appSettings.JWT.Issuer, appSettings.JWT.Audience, key, SignatureAlgorithm.HS256, () => container.GetInstance<IUserRepository>());
             container.RegisterInstance<IAuthenticationProvider>(authenticationProvider);
 
 
             container.RegisterSingleton<ILiteDbConnectionPool>(() =>
             {
                 var pool = new LiteDbConnectionPool(TimeSpan.FromMinutes(1));
-                pool.OnInitializeDatabase += LiteDbRepositoryInitialization.Perform;
+                pool.OnInitializeDatabase += new LiteDbRepositoryInitialization(container.GetInstance<ILogger>()).Perform;
                 return pool;
             });
 
@@ -178,6 +180,7 @@ namespace CodeSniffer
             container.Register<IDefinitionRepository, LiteDbDefinitionRepository>(instancePerDependencyLifestyle);
             container.Register<IReportRepository, LiteDbReportRepository>(instancePerDependencyLifestyle);
             container.Register<ISourceCodeStatusRepository, LiteDbSourceCodeStatusRepository>(instancePerDependencyLifestyle);
+            container.Register<IUserRepository, LiteDbUserRepository>(instancePerDependencyLifestyle);
 
             container.RegisterSingleton<IRepositoryMonitor, RepositoryMonitor>();
             container.RegisterSingleton<IJobRunner, JobRunner>();

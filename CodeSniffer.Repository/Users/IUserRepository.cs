@@ -5,6 +5,8 @@
         ValueTask<IReadOnlyList<ListUser>> List();
         ValueTask<CsStoredUser> GetDetails(string id);
 
+        ValueTask<LoginUser?> ValidateLogin(string username, string password);
+
         ValueTask<string> Insert(CsUser newUser, string password, string author);
         ValueTask Update(string id, CsUser newUser, string? password, string author);
         ValueTask Remove(string id, string author);
@@ -25,6 +27,22 @@
             Username = username;
             DisplayName = displayName;
             Email = email;
+        }
+    }
+
+
+    public class LoginUser
+    {
+        public string Username { get; }
+        public string DisplayName { get; }
+        public string Role { get; }
+
+
+        public LoginUser(string username, string displayName, string role)
+        {
+            Username = username;
+            DisplayName = displayName;
+            Role = role;
         }
     }
 

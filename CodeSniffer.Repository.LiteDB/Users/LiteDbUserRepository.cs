@@ -1,6 +1,8 @@
-﻿using CodeSniffer.Repository.Users;
+﻿using System.Diagnostics.CodeAnalysis;
+using CodeSniffer.Repository.Users;
 using JetBrains.Annotations;
 using LiteDB;
+using Serilog;
 
 namespace CodeSniffer.Repository.LiteDB.Users
 {
@@ -17,13 +19,22 @@ namespace CodeSniffer.Repository.LiteDB.Users
 
 
         
-        public static ValueTask Initialize(ILiteDatabase database)
+        public static ValueTask Initialize(ILiteDatabase database, ILogger logger)
         {
             var userCollection = database.GetCollection<UserRecord>(UserCollection);
             userCollection.EnsureIndex(r => r.Username);
 
             var archiveCollection = database.GetCollection<ArchivedUserRecord>(UserArchiveCollection);
             archiveCollection.EnsureIndex(r => r.OriginalId);
+
+
+            // ReSharper disable once InvertIf
+            if (userCollection.Count() == 0)
+            {
+                logger.Information("No users found, creating default admin user");
+                userCollection.Insert(new UserRecord(ObjectId.NewObjectId(), "admin", "Admin", "admin@localhost",
+                    HashPassword("admin"), "admin", false, "System", null));
+            }
 
             return default;
         }
@@ -55,12 +66,28 @@ namespace CodeSniffer.Repository.LiteDB.Users
         }
 
 
+        public async ValueTask<LoginUser?> ValidateLogin(string username, string password)
+        {
+            using var connection = await GetConnection();
+            var collection = connection.Database.GetCollection<UserRecord>(UserCollection);
+
+            var record = collection.FindOne(r => r.Username == username);
+            if (record == null)
+                return null;
+
+            if (!SamePassword(record.HashedPassword, password))
+                return null;
+
+            return new LoginUser(record.Username, record.DisplayName, record.Role);
+        }
+
+
         public async ValueTask<string> Insert(CsUser newUser, string password, string author)
         {
             using var connection = await GetConnection();
             var collection = connection.Database.GetCollection<UserRecord>(UserCollection);
 
-            var newRecord = MapUser(ObjectId.NewObjectId(), newUser, author, null);
+            var newRecord = MapUser(ObjectId.NewObjectId(), newUser, HashPassword(password), author, null);
             return collection.Insert(newRecord).ToString();
         }
 
@@ -78,7 +105,7 @@ namespace CodeSniffer.Repository.LiteDB.Users
             if (currentRecord == null)
                 throw new InvalidOperationException($"Unknown user Id: {id}");
 
-            var newRecord = MapUser(recordId, newUser, author, null);
+            var newRecord = MapUser(recordId, newUser, HashPassword(password) ?? currentRecord.HashedPassword, author, null);
             if (!newRecord.Changed(currentRecord))
                 return;
 
@@ -147,18 +174,32 @@ namespace CodeSniffer.Repository.LiteDB.Users
         }
 
 
-        private static UserRecord MapUser(ObjectId id, CsUser user, string author, string? removedBy)
+        private static UserRecord MapUser(ObjectId id, CsUser user, string password, string author, string? removedBy)
         {
             return new UserRecord(
                 id,
                 user.Username,
                 user.DisplayName,
                 user.Email,
+                password,
                 user.Role,
                 user.Notifications,
                 author,
                 removedBy
             );
+        }
+
+
+        [return:NotNullIfNotNull("password")]
+        private static string? HashPassword(string? password)
+        {
+            return password == null ? null : PBKDF2.Hash(password);
+        }
+
+
+        private static bool SamePassword(string hashedPassword, string password)
+        {
+            return PBKDF2.Validate(password, hashedPassword);
         }
 
 
@@ -172,6 +213,7 @@ namespace CodeSniffer.Repository.LiteDB.Users
             public string Username { get; }
             public string DisplayName { get; }
             public string Email { get; }
+            public string HashedPassword { get; }
 
             public string Role { get; }
             public bool Notifications { get; }
@@ -181,12 +223,13 @@ namespace CodeSniffer.Repository.LiteDB.Users
 
 
             [BsonCtor]
-            public UserRecord(ObjectId id, string username, string displayName, string email, string role, bool notifications, string author, string? removedBy)
+            public UserRecord(ObjectId id, string username, string displayName, string email, string hashedPassword, string role, bool notifications, string author, string? removedBy)
             {
                 Id = id;
                 Username = username;
                 DisplayName = displayName;
                 Email = email;
+                HashedPassword = hashedPassword;
                 Role = role;
                 Notifications = notifications;
                 Author = author;
@@ -211,11 +254,12 @@ namespace CodeSniffer.Repository.LiteDB.Users
 
             [BsonCtor]
             public ArchivedUserRecord(ObjectId id, ObjectId originalId, string username, string displayName, string email, string role, bool notifications, string author, string? removedBy)
-                : base(id, username, displayName, email, role, notifications, author, removedBy)
+                : base(id, username, displayName, email, "<redacted>", role, notifications, author, removedBy)
             {
                 OriginalId = originalId;
             }
         }
+
 
         [UsedImplicitly]
         private class UserListRecord

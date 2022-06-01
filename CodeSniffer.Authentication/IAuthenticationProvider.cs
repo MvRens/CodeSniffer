@@ -1,9 +1,7 @@
-﻿using System.Diagnostics.CodeAnalysis;
-
-namespace CodeSniffer.Authentication
+﻿namespace CodeSniffer.Authentication
 {
     public interface IAuthenticationProvider
     {
-        bool Validate(string username, string password, [NotNullWhen(true)]out string? token);
+        ValueTask<string?> Validate(string username, string password);
     }
 }

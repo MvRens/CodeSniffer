@@ -1,6 +1,5 @@
 ﻿using CodeSniffer.Core.Sniffer;
 using CodeSniffer.Repository.Reports;
-using JetBrains.Annotations;
 using LiteDB;
 
 namespace CodeSniffer.Repository.LiteDB.Reports

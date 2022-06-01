@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Threading.Tasks;
 using CodeSniffer.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,9 +20,10 @@ namespace CodeSniffer.API.Authentication
 
 
         [HttpPost("login")]
-        public ActionResult<LoginResponse> Login(LoginRequest request)
+        public async ValueTask<ActionResult<LoginResponse>> Login(LoginRequest request)
         {
-            if (!authenticationProvider.Validate(request.Username, request.Password, out var token))
+            var token = await authenticationProvider.Validate(request.Username, request.Password);
+            if (token == null)
                 return Forbid();
 
             return Ok(new LoginResponse(token));
