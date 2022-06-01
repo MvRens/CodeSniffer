@@ -5,14 +5,15 @@ install:
   - choco install gitversion.portable -pre -y
 
 before_build:
-  - ps: gitversion /l console /output buildserver
+  - gitversion /l console /output buildserver
+  - nuget restore
 
 environment:
   pack_params: -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output -p:Configuration=Release -p:ContinuousIntegrationBuild=true
 
 after_build:
   # Create NuGet packages
-  - cmd: dotnet pack CodeSniffer.Core\CodeSniffer.Core.csproj %pack_params% -p:Version=%GitVersion_NuGetVersion%
+  - dotnet pack CodeSniffer.Core\CodeSniffer.Core.csproj %pack_params% -p:Version=%GitVersion_NuGetVersion%
   # Push artifacts
   - ps: Get-ChildItem output\*.nupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
   - ps: Get-ChildItem output\*.snupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
