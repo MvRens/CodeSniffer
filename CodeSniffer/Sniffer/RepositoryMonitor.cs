@@ -56,7 +56,7 @@ namespace CodeSniffer.Sniffer
 
 
         // ReSharper disable once ParameterHidesMember
-        public void Initialize(IEnumerable<CsDefinition> definitions)
+        public void Initialize(IEnumerable<CsStoredDefinition> definitions)
         {
             if (monitorTask != null)
                 throw new InvalidOperationException("Initialized must be called exactly once");

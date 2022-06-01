@@ -12,9 +12,19 @@
         <router-link :to="{ name: 'CreateDefinition' }" class="button button-primary" :class="{ disabled: isLoading }">{{ t('definitiontoolbar.create') }}</router-link>
       </div>
 
-      <div v-if="definitions !== null && definitions.length === 0">
+      <div v-if="definitions.length === 0">
         {{ t('nodefinitions' )}}
-      </div>      
+      </div>
+
+      <div class="definitions">
+        <template v-for="definition in definitions" :key="definition.id">
+          {{ definition.name }}
+          <div class="buttons">
+            <router-link :to="{ name: 'EditDefinition', params: { id: definition.id } }" class="button">{{ t('edit') }}</router-link>
+            <button @click="deleteDefinition(definition.id)" class="button">{{ t('delete') }}</button>
+          </div>
+        </template>
+      </div>
     </div>
   </div>
 </template>
@@ -27,6 +37,8 @@ en:
   nodefinitions: "No definitions created yet."
   definitiontoolbar:
     create: "Create"
+  edit: "Edit"
+  delete: "Delete"
   notifications:
     loadDefinitionsFailed: "Failed to load definitions list: {message}"
     loadStatusMapFailed: "Failed to load definition status: {message}"
@@ -50,7 +62,7 @@ const statusMap = ref(null as DefinitionStatusMap | null);
 
 const isLoading = computed(() => 
 {
-  return definitions === null || statusMap === null;
+  return definitions.value === null || statusMap.value === null;
 });
 
 
@@ -90,4 +102,10 @@ async function loadStatusMap()
 </script>
 
 <style lang="scss" scoped>
+.definitions
+{
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
 </style>

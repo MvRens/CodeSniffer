@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using CodeSniffer.Auth;
@@ -54,7 +56,8 @@ namespace CodeSniffer.API.Definition
 
             foreach (var pluginInfo in pluginManager)
             {
-                var pluginViewModel = new PluginViewModel(pluginInfo.Id, pluginInfo.Plugin.Name, pluginInfo.Plugin.DefaultOptions?.ToJsonString(DefaultOptionsSerializerOptions));
+                var pluginViewModel = new PluginViewModel(pluginInfo.Id, pluginInfo.Plugin.Name,
+                    pluginInfo.Plugin.DefaultOptions?.ToJsonString(DefaultOptionsSerializerOptions));
 
                 // ReSharper disable once ConvertIfStatementToSwitchStatement - not the same! a plugin could implement both.
                 if (pluginInfo.Plugin is ICsSourceCodeRepositoryPlugin)
@@ -67,11 +70,11 @@ namespace CodeSniffer.API.Definition
             return new PluginsViewModel(
                 sourcePlugins.ToArray(),
                 checkPlugins.ToArray()
-                );
+            );
         }
 
 
-        [HttpGet("/:id")]
+        [HttpGet("{id}")]
         [Authorize(Policy = CsPolicyNames.Developers)]
         public async ValueTask<ActionResult<DefinitionViewModel>> GetDetails(string id)
         {
@@ -88,7 +91,7 @@ namespace CodeSniffer.API.Definition
                         PluginName = c.PluginName,
                         Configuration = c.Configuration.ToJsonString()
                     }).ToArray(),
-                    Sources = details.Checks.Select(s => new DefinitionSourceViewModel
+                    Sources = details.Sources.Select(s => new DefinitionSourceViewModel
                     {
                         Name = s.Name,
                         PluginName = s.PluginName,
@@ -103,6 +106,75 @@ namespace CodeSniffer.API.Definition
         }
 
 
-        // TODO save
+        [HttpPost]
+        [Authorize(Policy = CsPolicyNames.Developers)]
+        public async ValueTask<ActionResult<string>> InsertDetails([FromBody] DefinitionViewModel viewModel)
+        {
+            var definition = ViewModelToDefinition(viewModel);
+            var id = await definitionRepository.Insert(definition, GetAuthor());
+            return Ok(id);
+        }
+
+
+        [HttpPut("{id}")]
+        [Authorize(Policy = CsPolicyNames.Developers)]
+        public async ValueTask<ActionResult> UpdateDetails(string id, [FromBody] DefinitionViewModel viewModel)
+        {
+            var definition = ViewModelToDefinition(viewModel);
+            
+            try
+            {
+                await definitionRepository.Update(id, definition, GetAuthor());
+                return NoContent();
+            }
+            catch (InvalidOperationException)
+            {
+                return NotFound();
+            }
+        }
+
+
+        [HttpDelete("{id}")]
+        [Authorize(Policy = CsPolicyNames.Developers)]
+        public async ValueTask<ActionResult> Delete(string id)
+        {
+            try
+            {
+                await definitionRepository.Remove(id, GetAuthor());
+                return NoContent();
+            }
+            catch (InvalidOperationException)
+            {
+                return NotFound();
+            }
+        }
+
+
+        private string GetAuthor()
+        {
+            var usernameClaim = Request.HttpContext.User.FindFirst(ClaimTypes.Name);
+            if (usernameClaim == null)
+                throw new UnauthorizedAccessException();
+
+            return usernameClaim.Value;
+        }
+
+
+        private static CsDefinition ViewModelToDefinition(DefinitionViewModel viewModel)
+        {
+            return new CsDefinition(
+                viewModel.Name!, 
+                viewModel.Sources?.Select(s => new CsDefinitionSource(s.Name!, s.PluginName!, ParseConfiguration(s.Configuration))).ToArray() ?? Array.Empty<CsDefinitionSource>(),
+                viewModel.Checks?.Select(c => new CsDefinitionCheck(c.Name!, c.PluginName!, ParseConfiguration(c.Configuration))).ToArray() ?? Array.Empty<CsDefinitionCheck>());
+        }
+
+
+        private static JsonObject ParseConfiguration(string? configuration)
+        {
+            if (configuration == null)
+                return new JsonObject();
+
+            return JsonNode.Parse(configuration) as JsonObject ?? new JsonObject();
+        }
     }
 }

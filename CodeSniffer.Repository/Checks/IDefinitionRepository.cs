@@ -2,10 +2,10 @@
 {
     public interface IDefinitionRepository
     {
-        ValueTask<IReadOnlyList<CsDefinition>> GetAllDetails();
+        ValueTask<IReadOnlyList<CsStoredDefinition>> GetAllDetails();
 
         ValueTask<IReadOnlyList<ListDefinition>> List();
-        ValueTask<CsDefinition> GetDetails(string id);
+        ValueTask<CsStoredDefinition> GetDetails(string id);
 
         ValueTask<string> Insert(CsDefinition newDefinition, string author);
         ValueTask Update(string id, CsDefinition newDefinition, string author);

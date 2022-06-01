@@ -21,14 +21,14 @@ namespace CodeSniffer.Repository.LiteDB.Checks
         {
             database.GetCollection<DefinitionRecord>(DefinitionCollection);
 
-            var archiveCollection = database.GetCollection<DefinitionRecord>(DefinitionArchiveCollection);
-            archiveCollection.EnsureIndex(r => r.Version);
+            var archiveCollection = database.GetCollection<ArchivedDefinitionRecord>(DefinitionArchiveCollection);
+            archiveCollection.EnsureIndex(r => r.OriginalId);
 
             return default;
         }
 
 
-        public async ValueTask<IReadOnlyList<CsDefinition>> GetAllDetails()
+        public async ValueTask<IReadOnlyList<CsStoredDefinition>> GetAllDetails()
         {
             using var connection = await GetConnection();
             var collection = connection.Database.GetCollection<DefinitionRecord>(DefinitionCollection);
@@ -50,12 +50,14 @@ namespace CodeSniffer.Repository.LiteDB.Checks
         }
 
 
-        public async ValueTask<CsDefinition> GetDetails(string id)
+        public async ValueTask<CsStoredDefinition> GetDetails(string id)
         {
+            var recordId = new ObjectId(id);
+
             using var connection = await GetConnection();
             var collection = connection.Database.GetCollection<DefinitionRecord>(DefinitionCollection);
 
-            var record = collection.FindById(id);
+            var record = collection.FindById(recordId);
             if (record == null)
                 throw new InvalidOperationException($"Unknown definition Id: {id}");
 
@@ -77,22 +79,33 @@ namespace CodeSniffer.Repository.LiteDB.Checks
         {
             // TODO deal with concurrent edits
 
+            var recordId = new ObjectId(id);
+
             using var connection = await GetConnection();
             var collection = connection.Database.GetCollection<DefinitionRecord>(DefinitionCollection);
 
-            var currentRecord = collection.FindById(id);
+            var currentRecord = collection.FindById(recordId);
             if (currentRecord == null)
                 throw new InvalidOperationException($"Unknown definition Id: {id}");
 
-            var newRecord = MapDefinition(new ObjectId(id), newDefinition, currentRecord.Version + 1, author, null);
+            var newRecord = MapDefinition(recordId, newDefinition, currentRecord.Version + 1, author, null);
             if (!newRecord.Changed(currentRecord))
                 return;
 
 
             var archiveCollection = connection.Database.GetCollection<DefinitionRecord>(DefinitionArchiveCollection);
-            archiveCollection.Insert(currentRecord);
+            archiveCollection.Insert(new ArchivedDefinitionRecord(
+                ObjectId.NewObjectId(),
+                currentRecord.Id,
+                currentRecord.Name,
+                currentRecord.Version,
+                currentRecord.Author,
+                currentRecord.RemovedBy,
+                currentRecord.Sources,
+                currentRecord.Checks
+            ));
 
-            collection.Update(id, newRecord);
+            collection.Update(recordId, newRecord);
         }
 
 
@@ -100,14 +113,17 @@ namespace CodeSniffer.Repository.LiteDB.Checks
         {
             // TODO deal with concurrent edits
 
+            var recordId = new ObjectId(id);
+
             using var connection = await GetConnection();
             var collection = connection.Database.GetCollection<DefinitionRecord>(DefinitionCollection);
 
-            var currentRecord = collection.FindById(id);
+            var currentRecord = collection.FindById(recordId);
             if (currentRecord == null)
                 return;
 
-            var removedRecord = new DefinitionRecord(
+            var removedRecord = new ArchivedDefinitionRecord(
+                ObjectId.NewObjectId(), 
                 currentRecord.Id,
                 currentRecord.Name,
                 currentRecord.Version,
@@ -119,13 +135,13 @@ namespace CodeSniffer.Repository.LiteDB.Checks
             var archiveCollection = connection.Database.GetCollection<DefinitionRecord>(DefinitionArchiveCollection);
             archiveCollection.Insert(removedRecord);
 
-            collection.Delete(id);
+            collection.Delete(recordId);
         }
 
 
-        private static CsDefinition MapDefinition(DefinitionRecord record)
+        private static CsStoredDefinition MapDefinition(DefinitionRecord record)
         {
-            return new CsDefinition(
+            return new CsStoredDefinition(
                 record.Id.ToString(),
                 record.Name,
                 record.Version,
@@ -168,7 +184,6 @@ namespace CodeSniffer.Repository.LiteDB.Checks
         }
 
 
-        // ReSharper disable ReturnTypeCanBeEnumerable.Local
         private class DefinitionRecord
         {
             [BsonId] 
@@ -182,6 +197,21 @@ namespace CodeSniffer.Repository.LiteDB.Checks
             public string? RemovedBy { get; }
             public DefinitionSourceRecord[] Sources { get; }
             public DefinitionCheckRecord[] Checks { get; }
+
+
+            // ReSharper disable once UnusedMember.Local - by BsonMapper
+            // ReSharper disable once MemberCanBeProtected.Local
+            [BsonCtor]
+            public DefinitionRecord(ObjectId id, string name, int version, string author, string? removedBy, BsonArray sources, BsonArray checks)
+            {
+                Id = id;
+                Name = name;
+                Version = version;
+                Author = author;
+                RemovedBy = removedBy;
+                Sources = sources.ToArray<DefinitionSourceRecord>();
+                Checks = checks.ToArray<DefinitionCheckRecord>();
+            }
 
 
             public DefinitionRecord(ObjectId id, string name, int version, string author, string? removedBy, DefinitionSourceRecord[] sources, DefinitionCheckRecord[] checks)
@@ -203,7 +233,27 @@ namespace CodeSniffer.Repository.LiteDB.Checks
                        !reference.Checks.SequenceEqual(Checks);
             }
         }
-        // ReSharper restore ReturnTypeCanBeEnumerable.Local
+
+
+        private class ArchivedDefinitionRecord : DefinitionRecord
+        {
+            public ObjectId OriginalId { get; }
+
+            // ReSharper disable once UnusedMember.Local - by BsonMapper
+            [BsonCtor]
+            public ArchivedDefinitionRecord(ObjectId id, ObjectId originalId, string name, int version, string author, string? removedBy, BsonArray sources, BsonArray checks)
+                : base(id, name, version, author, removedBy, sources, checks)
+            {
+                OriginalId = originalId;
+            }
+
+
+            public ArchivedDefinitionRecord(ObjectId id, ObjectId originalId, string name, int version, string author, string? removedBy, DefinitionSourceRecord[] sources, DefinitionCheckRecord[] checks)
+                : base(id, name, version, author, removedBy, sources, checks)
+            {
+                OriginalId = originalId;
+            }
+        }
 
 
         private class DefinitionSourceRecord : IEquatable<DefinitionSourceRecord>

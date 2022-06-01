@@ -6,6 +6,6 @@ namespace CodeSniffer.Sniffer
 {
     public interface IRepositoryMonitor : IAsyncDisposable
     {
-        void Initialize(IEnumerable<CsDefinition> definitions);
+        void Initialize(IEnumerable<CsStoredDefinition> definitions);
     }
 }

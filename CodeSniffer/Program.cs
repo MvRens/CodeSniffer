@@ -21,7 +21,10 @@ using Serilog.Core;
 using SimpleInjector;
 using SimpleInjector.Lifestyles;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc;
 using Serilog.Events;
+
+[assembly:ApiController]
 
 namespace CodeSniffer
 {

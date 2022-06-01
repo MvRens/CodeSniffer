@@ -18,79 +18,87 @@
       </div>
     </form>
 
-    <h5 class="section">{{ t('sources') }}</h5>
-    <div class="sources">
-      <div v-if="sources.length === 0">
-        {{ t('nosources' )}}
-      </div>
-
-      <div v-for="(source, i) in sources" :key="i">
-        <div v-if="editingSource === i" class="row editing">
-          <form class="u-full-width" @submit.prevent="closeSource">
-            <label for="sourceName">{{ t('sourceName') }}</label>
-            <input class="u-full-width" type="text" id="sourceName" v-model="source.name" :class="{ required: !source.name }" />
-
-            <label for="sourcePlugin">{{ t('pluginName') }}</label>
-            <select class="u-full-width" id="sourcePlugin" :class="{ required: !source.pluginName }" v-model="source.pluginName">
-              <option disabled :value="null">{{ t('pluginSelect') }}</option>
-              <option v-for="option in sourcePluginOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-            </select>
-
-            <label for="sourceConfiguration">{{ t('configuration') }}</label>
-            <textarea class="u-full-width configuration" type="text" id="sourceConfiguration" v-model="source.configuration" />
-
-            <input type="submit" class="button button-primary" :value="t('toolbar.close')" />
-          </form>
+    <template v-if="!loading">
+      <h5 class="section">{{ t('sources') }}</h5>
+      <div class="sources">
+        <div v-if="sources.length === 0">
+          {{ t('nosources' )}}
         </div>
 
-        <div v-else class="row item">
-          <div class="five columns">{{ source.name || t('noname') }}</div>
-          <div class="five columns">{{ getOptionsLabel(sourcePluginOptions, source.pluginName) }}</div>
-          <div class="two columns buttons"><button @click="editSource(i)" class="button">{{ t('edit') }}</button></div>
-        </div>
-      </div>
+        <template v-for="(source, i) in sources" :key="i">
+          <div v-if="editingSource === i" class="source editing">
+            <form @submit.prevent="closeSource">
+              <label for="sourceName">{{ t('sourceName') }}</label>
+              <input class="u-full-width" type="text" id="sourceName" v-model="source.name" :class="{ required: !source.name }" />
 
-      <div class="toolbar">
-        <button @click="addSource" class="button button-primary">{{ t('toolbar.addsource') }}</button>
-      </div>
-    </div>
+              <label for="sourcePlugin">{{ t('pluginName') }}</label>
+              <select class="u-full-width" id="sourcePlugin" :class="{ required: !source.pluginName }" v-model="source.pluginName">
+                <option disabled :value="null">{{ t('pluginSelect') }}</option>
+                <option v-for="option in sourcePluginOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+              </select>
 
-    <h5 class="section">{{ t('checks') }}</h5>
-    <div class="checks">
-      <div v-if="checks.length === 0">
-        {{ t('nochecks' )}}
-      </div>
+              <label for="sourceConfiguration">{{ t('configuration') }}</label>
+              <textarea class="u-full-width configuration" type="text" id="sourceConfiguration" v-model="source.configuration" />
 
-      <div v-for="(check, i) in checks" :key="i">
-        <div v-if="editingCheck === i" class="row editing">
-          <form class="u-full-width" @submit.prevent="closeCheck">
-            <label for="checkName">{{ t('checkName') }}</label>
-            <input class="u-full-width" type="text" id="checkName" v-model="check.name" :class="{ required: !check.name }" />
+              <input type="submit" class="button button-primary" :value="t('toolbar.close')" />
+            </form>
+          </div>
 
-            <label for="checkPlugin">{{ t('pluginName') }}</label>            
-            <select class="u-full-width" id="checkPlugin" :class="{ required: !check.pluginName }" v-model="check.pluginName">
-              <option disabled :value="null">{{ t('pluginSelect') }}</option>
-              <option v-for="option in checkPluginOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-            </select>
+          <template v-else>
+            <div class="name">{{ source.name || t('noname') }}</div>
+            <div class="plugin">{{ getOptionsLabel(sourcePluginOptions, source.pluginName) }}</div>
+            <div class="buttons">
+              <button @click="editSource(i)" class="button">{{ t('edit') }}</button>
+              <button @click="deleteSource(i)" class="button">{{ t('delete') }}</button>
+            </div>
+          </template>
+        </template>
 
-            <label for="checkConfiguration">{{ t('configuration') }}</label>
-            <textarea class="u-full-width configuration" type="text" id="checkConfiguration" v-model="check.configuration" />
-
-            <input type="submit" class="button button-primary" :value="t('toolbar.close')" />
-          </form>
-        </div>
-
-        <div v-else class="row item">
-          <div class="five columns">{{ check.name || t('noname') }}</div>
-          <div class="five columns">{{ getOptionsLabel(checkPluginOptions, check.pluginName) }}</div>
-          <div class="two columns buttons"><button @click="editCheck(i)" class="button">{{ t('edit') }}</button></div>
+        <div class="toolbar">
+          <button @click="addSource" class="button button-primary">{{ t('toolbar.addsource') }}</button>
         </div>
       </div>
 
-      <div class="toolbar">
-        <button @click="addCheck" class="button button-primary" :class="{ disabled: saving }">{{ t('toolbar.addcheck') }}</button>
+      <h5 class="section">{{ t('checks') }}</h5>
+      <div class="checks">
+        <div v-if="checks.length === 0">
+          {{ t('nochecks' )}}
+        </div>
+
+        <template v-for="(check, i) in checks" :key="i">
+          <div v-if="editingCheck === i" class="check editing">
+            <form @submit.prevent="closeCheck">
+              <label for="checkName">{{ t('checkName') }}</label>
+              <input class="u-full-width" type="text" id="checkName" v-model="check.name" :class="{ required: !check.name }" />
+
+              <label for="checkPlugin">{{ t('pluginName') }}</label>            
+              <select class="u-full-width" id="checkPlugin" :class="{ required: !check.pluginName }" v-model="check.pluginName">
+                <option disabled :value="null">{{ t('pluginSelect') }}</option>
+                <option v-for="option in checkPluginOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+              </select>
+
+              <label for="checkConfiguration">{{ t('configuration') }}</label>
+              <textarea class="u-full-width configuration" type="text" id="checkConfiguration" v-model="check.configuration" />
+
+              <input type="submit" class="button button-primary" :value="t('toolbar.close')" />
+            </form>
+          </div>
+
+          <template v-else>
+            <div class="name">{{ check.name || t('noname') }}</div>
+            <div class="plugin">{{ getOptionsLabel(checkPluginOptions, check.pluginName) }}</div>
+            <div class="buttons">
+              <button @click="editCheck(i)" class="button">{{ t('edit') }}</button>
+              <button @click="deleteCheck(i)" class="button">{{ t('delete') }}</button>
+            </div>
+          </template>
+        </template>
+
+        <div class="toolbar">
+          <button @click="addCheck" class="button button-primary" :class="{ disabled: saving }">{{ t('toolbar.addcheck') }}</button>
+        </div>
       </div>
-    </div>
+    </template>
   </div>
 </template>
 
@@ -117,11 +125,14 @@ en:
   pluginName: "Type"
   pluginSelect: "Select a source type..."
   edit: "Edit"
+  delete: "Remove"
   noname: "<unnamed>"
   noplugin: "<no plugin selected>"
   configuration: "Configuration"
   notifications: 
+    saveSuccess: "The definition has been saved"
     loadDefinitionFailed: "Failed to load definition: {message}"
+    saveDefinitionFailed: "Failed to save definition: {message}"
 </i18n>
 
 <script lang="ts" setup>
@@ -129,7 +140,8 @@ import { ref, watchEffect, onMounted, reactive } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import { useNotifications } from '@/lib/notifications';
-import { DefinitionCheckViewModel, DefinitionSourceViewModel, PluginsViewModel, PluginViewModel } from '@/models/definitions';
+import { DefinitionCheckViewModel, DefinitionSourceViewModel, DefinitionViewModel, PluginsViewModel, PluginViewModel } from '@/models/definitions';
+import router from '@/router';
 
 
 interface PluginSelectOption
@@ -182,19 +194,40 @@ onMounted(async () =>
 
 async function loadDefinition(id: string)
 {
-  // TODO
+  const response = await axios.get<DefinitionViewModel>(`/api/definitions/${encodeURIComponent(id)}`);
 
-  name.value = "Test";
-  originalName.value = "Test";
+  name.value = response.data.name;
+  originalName.value = name.value;
 
-  Object.assign(sources, []);
-  Object.assign(checks, []);
+  Object.assign(sources, response.data.sources);
+  Object.assign(checks, response.data.checks);
 }
 
 
 async function saveDefinition()
 {
-  notifications.info('Hier had uw definitie opgeslagen kunnen worden');
+  // TODO validate input
+
+
+  const definition: DefinitionViewModel = {
+    name: name.value,
+    sources,
+    checks
+  };
+
+  try
+  {
+    const response = !!props.id 
+      ? await axios.put(`/api/definitions/${encodeURIComponent(props.id)}`, definition)
+      : await axios.post('/api/definitions', definition);
+
+    notifications.info(t('notifications.saveSuccess'));
+    router.push({ name: 'Home' });
+  }
+  catch (e)
+  {
+    notifications.alert(t('notifications.saveDefinitionFailed', { message: (e as Error).message }));
+  }
 }
 
 
@@ -243,6 +276,17 @@ function editSource(index: number)
   editingSource.value = index;
 }
 
+function deleteSource(index: number)
+{
+  if (index === editingSource.value)
+    editingSource.value = null;
+
+  if (index < 0 || index >= sources.length)
+    return;
+
+  sources.splice(index, 1);
+}
+
 function closeSource()
 {
   editingSource.value = null;
@@ -268,7 +312,6 @@ function watchSource(source: DefinitionSourceViewModel): DefinitionSourceViewMod
   return reactiveSource;
 }
 
-
 function addCheck()
 {
   editingCheck.value = checks.push(watchCheck({
@@ -281,6 +324,17 @@ function addCheck()
 function editCheck(index: number)
 {
   editingCheck.value = index;
+}
+
+function deleteCheck(index: number)
+{
+  if (index === editingCheck.value)
+    editingCheck.value = null;
+
+  if (index < 0 || index >= checks.length)
+    return;
+
+  checks.splice(index, 1);
 }
 
 function closeCheck()
@@ -338,9 +392,15 @@ function watchCheck(check: DefinitionCheckViewModel): DefinitionCheckViewModel
   }
 }
 
-.buttons
+.checks, .sources
 {
-  text-align: right;
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+
+  .editing, .toolbar
+  {
+    grid-column: 1 / span 3;
+  }
 }
 
 
