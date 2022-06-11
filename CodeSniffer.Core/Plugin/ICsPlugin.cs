@@ -21,4 +21,16 @@ namespace CodeSniffer.Core.Plugin
         /// </summary>
         JsonObject? DefaultOptions { get; }
     }
+
+
+    /// <summary>
+    /// Implement to provide help text for the user interface.
+    /// </summary>
+    public interface ICsPluginHelp : ICsPlugin
+    {
+        /// <summary>
+        /// Help text explaining the supported options in HTML format.
+        /// </summary>
+        string? OptionsHelpHtml { get; }
+    }
 }

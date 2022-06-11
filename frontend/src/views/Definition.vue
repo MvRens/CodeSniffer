@@ -32,7 +32,7 @@
               <input class="u-full-width" type="text" id="sourceName" v-model="source.name" :class="{ required: !source.name }" />
 
               <label for="sourcePlugin">{{ t('pluginName') }}</label>
-              <select class="u-full-width" id="sourcePlugin" :class="{ required: !source.pluginName }" v-model="source.pluginName">
+              <select class="u-full-width" id="sourcePlugin" :class="{ required: !source.pluginId }" v-model="source.pluginId">
                 <option disabled :value="null">{{ t('pluginSelect') }}</option>
                 <option v-for="option in sourcePluginOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
               </select>
@@ -40,13 +40,15 @@
               <label for="sourceConfiguration">{{ t('configuration') }}</label>
               <textarea class="u-full-width configuration" type="text" id="sourceConfiguration" v-model="source.configuration" />
 
+              <!-- TODO options help -->
+
               <input type="submit" class="button button-primary" :value="t('toolbar.close')" />
             </form>
           </div>
 
           <template v-else>
             <div class="name">{{ source.name || t('noname') }}</div>
-            <div class="plugin">{{ getOptionsLabel(sourcePluginOptions, source.pluginName) }}</div>
+            <div class="plugin">{{ getOptionsLabel(sourcePluginOptions, source.pluginId) }}</div>
             <div class="buttons">
               <button @click="editSource(i)" class="button">{{ t('edit') }}</button>
               <button @click="deleteSource(i)" class="button">{{ t('delete') }}</button>
@@ -72,7 +74,7 @@
               <input class="u-full-width" type="text" id="checkName" v-model="check.name" :class="{ required: !check.name }" />
 
               <label for="checkPlugin">{{ t('pluginName') }}</label>            
-              <select class="u-full-width" id="checkPlugin" :class="{ required: !check.pluginName }" v-model="check.pluginName">
+              <select class="u-full-width" id="checkPlugin" :class="{ required: !check.pluginId }" v-model="check.pluginId">
                 <option disabled :value="null">{{ t('pluginSelect') }}</option>
                 <option v-for="option in checkPluginOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
               </select>
@@ -80,13 +82,15 @@
               <label for="checkConfiguration">{{ t('configuration') }}</label>
               <textarea class="u-full-width configuration" type="text" id="checkConfiguration" v-model="check.configuration" />
 
+              <!-- TODO options help -->
+
               <input type="submit" class="button button-primary" :value="t('toolbar.close')" />
             </form>
           </div>
 
           <template v-else>
             <div class="name">{{ check.name || t('noname') }}</div>
-            <div class="plugin">{{ getOptionsLabel(checkPluginOptions, check.pluginName) }}</div>
+            <div class="plugin">{{ getOptionsLabel(checkPluginOptions, check.pluginId) }}</div>
             <div class="buttons">
               <button @click="editCheck(i)" class="button">{{ t('edit') }}</button>
               <button @click="deleteCheck(i)" class="button">{{ t('delete') }}</button>
@@ -148,7 +152,8 @@ interface PluginSelectOption
 {
   label: string;
   value: string;
-  defaultOptions?: string;
+  defaultOptions: string | null;
+  optionsHelp: string | null;
 }
 
 
@@ -241,7 +246,8 @@ async function loadPlugins()
     return {
       label: plugin.name,
       value: plugin.id,
-      defaultOptions: plugin.defaultOptions
+      defaultOptions: plugin.defaultOptions,
+      optionsHelp: plugin.optionsHelp
     }
   };
 
@@ -266,7 +272,7 @@ function addSource()
 {
   editingSource.value = sources.push(watchSource({
     name: null,
-    pluginName: null,
+    pluginId: null,
     configuration: null
   })) - 1;
 }
@@ -295,15 +301,15 @@ function closeSource()
 function watchSource(source: DefinitionSourceViewModel): DefinitionSourceViewModel
 {
   const reactiveSource = reactive(source);
-  let lastPluginName = reactiveSource.pluginName;
+  let lastPluginId = reactiveSource.pluginId;
 
   watchEffect(() => 
   {
-    if (reactiveSource.pluginName !== null && reactiveSource.pluginName !== lastPluginName)
+    if (reactiveSource.pluginId !== null && reactiveSource.pluginId !== lastPluginId)
     {
-      lastPluginName = reactiveSource.pluginName;
+      lastPluginId = reactiveSource.pluginId;
 
-      const option = sourcePluginOptions.find(o => o.value === reactiveSource.pluginName);
+      const option = sourcePluginOptions.find(o => o.value === reactiveSource.pluginId);
       if (!!option)
         reactiveSource.configuration = option.defaultOptions || null; 
     }
@@ -316,7 +322,7 @@ function addCheck()
 {
   editingCheck.value = checks.push(watchCheck({
     name: null,
-    pluginName: null,
+    pluginId: null,
     configuration: null
   })) - 1;
 }
@@ -345,15 +351,15 @@ function closeCheck()
 function watchCheck(check: DefinitionCheckViewModel): DefinitionCheckViewModel
 {
   const reactiveCheck = reactive(check);
-  let lastPluginName = reactiveCheck.pluginName;
+  let lastPluginId = reactiveCheck.pluginId;
 
   watchEffect(() => 
   {
-    if (reactiveCheck.pluginName !== null && reactiveCheck.pluginName !== lastPluginName)
+    if (reactiveCheck.pluginId !== null && reactiveCheck.pluginId !== lastPluginId)
     {
-      lastPluginName = reactiveCheck.pluginName;
+      lastPluginId = reactiveCheck.pluginId;
 
-      const option = checkPluginOptions.find(o => o.value === reactiveCheck.pluginName);
+      const option = checkPluginOptions.find(o => o.value === reactiveCheck.pluginId);
       if (!!option)
         reactiveCheck.configuration = option.defaultOptions || null; 
     }

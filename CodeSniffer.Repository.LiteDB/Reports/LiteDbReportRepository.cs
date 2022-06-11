@@ -28,10 +28,14 @@ namespace CodeSniffer.Repository.LiteDB.Reports
         }
 
 
-        public async ValueTask<string> Store(string definitionId, ICsReport report)
+        public ValueTask<string> Store(ICsJobReport report)
         {
-            CsReportResult result;
+            // TODO reimplement
+            throw new NotImplementedException();
 
+            //CsReportResult result;
+
+            /*
             var assets = report.Assets
                 .Select(a => new ReportAssetRecord(
                     a.Name,
@@ -65,6 +69,7 @@ namespace CodeSniffer.Repository.LiteDB.Reports
             using var connection = await GetConnection();
             var collection = connection.Database.GetCollection<ReportRecord>(ReportCollection);
             return collection.Insert(record).ToString();
+            */
         }
 
 

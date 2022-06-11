@@ -147,8 +147,8 @@ namespace CodeSniffer.Repository.LiteDB.Checks
                 record.Name,
                 record.Version,
                 record.Author,
-                record.Sources.Select(s => new CsDefinitionSource(s.Name, s.PluginName, ParseConfiguration(s.Configuration))).ToList(),
-                record.Checks.Select(c => new CsDefinitionCheck(c.Name, c.PluginName, ParseConfiguration(c.Configuration))).ToList()
+                record.Sources.Select(s => new CsDefinitionSource(s.Name, s.PluginId, ParseConfiguration(s.Configuration))).ToList(),
+                record.Checks.Select(c => new CsDefinitionCheck(c.Name, c.PluginId, ParseConfiguration(c.Configuration))).ToList()
             );
         }
 
@@ -164,14 +164,14 @@ namespace CodeSniffer.Repository.LiteDB.Checks
                 definition.Sources
                     .Select(s => new DefinitionSourceRecord(
                         s.Name, 
-                        s.PluginName, 
+                        s.PluginId, 
                         s.Configuration.ToJsonString()
                     ))
                     .ToArray(),
                 definition.Checks
                     .Select(c => new DefinitionCheckRecord(
                         c.Name,
-                        c.PluginName, 
+                        c.PluginId, 
                         c.Configuration.ToJsonString()
                     ))
                     .ToArray()
@@ -257,15 +257,15 @@ namespace CodeSniffer.Repository.LiteDB.Checks
         private class DefinitionSourceRecord : IEquatable<DefinitionSourceRecord>
         {
             public string Name { get; }
-            public string PluginName { get; }
+            public string PluginId { get; }
             public string Configuration { get; }
 
 
             [BsonCtor]
-            public DefinitionSourceRecord(string name, string pluginName, string configuration)
+            public DefinitionSourceRecord(string name, string pluginId, string configuration)
             {
                 Name = name;
-                PluginName = pluginName;
+                PluginId = pluginId;
                 Configuration = configuration;
             }
 
@@ -275,7 +275,7 @@ namespace CodeSniffer.Repository.LiteDB.Checks
                 if (other == null) return false;
                 if (ReferenceEquals(this, other)) return true;
 
-                return Name == other.Name && PluginName == other.PluginName && Configuration == other.Configuration;
+                return Name == other.Name && PluginId == other.PluginId && Configuration == other.Configuration;
             }
 
 
@@ -288,7 +288,7 @@ namespace CodeSniffer.Repository.LiteDB.Checks
 
             public override int GetHashCode()
             {
-                return HashCode.Combine(Name, PluginName, Configuration);
+                return HashCode.Combine(Name, PluginId, Configuration);
             }
         }
 
@@ -296,15 +296,15 @@ namespace CodeSniffer.Repository.LiteDB.Checks
         private class DefinitionCheckRecord : IEquatable<DefinitionCheckRecord>
         {
             public string Name { get; }
-            public string PluginName { get; }
+            public string PluginId { get; }
             public string Configuration { get; }
 
 
             [BsonCtor]
-            public DefinitionCheckRecord(string name, string pluginName, string configuration)
+            public DefinitionCheckRecord(string name, string pluginId, string configuration)
             {
                 Name = name;
-                PluginName = pluginName;
+                PluginId = pluginId;
                 Configuration = configuration;
             }
 
@@ -313,7 +313,7 @@ namespace CodeSniffer.Repository.LiteDB.Checks
             {
                 if (other == null) return false;
                 if (ReferenceEquals(this, other)) return true;
-                return Name == other.Name && PluginName == other.PluginName && Configuration == other.Configuration;
+                return Name == other.Name && PluginId == other.PluginId && Configuration == other.Configuration;
             }
 
 
@@ -326,7 +326,7 @@ namespace CodeSniffer.Repository.LiteDB.Checks
 
             public override int GetHashCode()
             {
-                return HashCode.Combine(Name, PluginName, Configuration);
+                return HashCode.Combine(Name, PluginId, Configuration);
             }
         }
 

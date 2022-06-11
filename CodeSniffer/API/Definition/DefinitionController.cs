@@ -7,6 +7,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using CodeSniffer.Auth;
+using CodeSniffer.Core.Plugin;
 using CodeSniffer.Core.Sniffer;
 using CodeSniffer.Core.Source;
 using CodeSniffer.Plugins;
@@ -57,7 +58,8 @@ namespace CodeSniffer.API.Definition
             foreach (var pluginInfo in pluginManager)
             {
                 var pluginViewModel = new PluginViewModel(pluginInfo.Id, pluginInfo.Plugin.Name,
-                    pluginInfo.Plugin.DefaultOptions?.ToJsonString(DefaultOptionsSerializerOptions));
+                    pluginInfo.Plugin.DefaultOptions?.ToJsonString(DefaultOptionsSerializerOptions),
+                    pluginInfo.Plugin is ICsPluginHelp pluginHelp ? pluginHelp.OptionsHelpHtml : null);
 
                 // ReSharper disable once ConvertIfStatementToSwitchStatement - not the same! a plugin could implement both.
                 if (pluginInfo.Plugin is ICsSourceCodeRepositoryPlugin)
@@ -88,13 +90,13 @@ namespace CodeSniffer.API.Definition
                     Checks = details.Checks.Select(c => new DefinitionCheckViewModel
                     {
                         Name = c.Name,
-                        PluginName = c.PluginName,
+                        PluginId = c.PluginId,
                         Configuration = c.Configuration.ToJsonString()
                     }).ToArray(),
                     Sources = details.Sources.Select(s => new DefinitionSourceViewModel
                     {
                         Name = s.Name,
-                        PluginName = s.PluginName,
+                        PluginId = s.PluginId,
                         Configuration = s.Configuration.ToJsonString()
                     }).ToArray()
                 });
@@ -164,8 +166,8 @@ namespace CodeSniffer.API.Definition
         {
             return new CsDefinition(
                 viewModel.Name!, 
-                viewModel.Sources?.Select(s => new CsDefinitionSource(s.Name!, s.PluginName!, ParseConfiguration(s.Configuration))).ToArray() ?? Array.Empty<CsDefinitionSource>(),
-                viewModel.Checks?.Select(c => new CsDefinitionCheck(c.Name!, c.PluginName!, ParseConfiguration(c.Configuration))).ToArray() ?? Array.Empty<CsDefinitionCheck>());
+                viewModel.Sources?.Select(s => new CsDefinitionSource(s.Name!, s.PluginId!, ParseConfiguration(s.Configuration))).ToArray() ?? Array.Empty<CsDefinitionSource>(),
+                viewModel.Checks?.Select(c => new CsDefinitionCheck(c.Name!, c.PluginId!, ParseConfiguration(c.Configuration))).ToArray() ?? Array.Empty<CsDefinitionCheck>());
         }
 
 

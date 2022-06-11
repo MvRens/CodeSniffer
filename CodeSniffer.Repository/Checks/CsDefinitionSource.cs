@@ -5,14 +5,14 @@ namespace CodeSniffer.Repository.Checks
     public class CsDefinitionSource
     {
         public string Name { get; }
-        public string PluginName { get; }
+        public string PluginId { get; }
         public JsonObject Configuration { get; }
 
 
-        public CsDefinitionSource(string name, string pluginName, JsonObject configuration)
+        public CsDefinitionSource(string name, string pluginId, JsonObject configuration)
         {
             Name = name;
-            PluginName = pluginName;
+            PluginId = pluginId;
             Configuration = configuration;
         }
     }

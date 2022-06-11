@@ -19,13 +19,15 @@
         public string Id { get; }
         public string Name { get; }
         public string? DefaultOptions { get; }
+        public string? OptionsHelp { get; }
 
 
-        public PluginViewModel(string id, string name, string? defaultOptions)
+        public PluginViewModel(string id, string name, string? defaultOptions, string? optionsHelp)
         {
             Id = id;
             Name = name;
             DefaultOptions = defaultOptions;
+            OptionsHelp = optionsHelp;
         }
     }
 }

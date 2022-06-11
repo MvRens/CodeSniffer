@@ -38,9 +38,9 @@ namespace CodeSniffer.Sniffer
 
             foreach (var check in definition.Checks)
             {
-                logger.Debug("Constructing plugin {pluginName} for check {checkName}", check.PluginName, check.Name);
+                logger.Debug("Constructing plugin {pluginId} for check {checkName}", check.PluginId, check.Name);
 
-                if (pluginManager.ByName(check.PluginName) is ICsSnifferPlugin plugin)
+                if (pluginManager.ByName(check.PluginId)?.Plugin is ICsSnifferPlugin plugin)
                 {
                     var sniffer = plugin.Create(jobLogger, check.Configuration);
                     var report = sniffer.Execute(workingCopyPath);
@@ -49,11 +49,11 @@ namespace CodeSniffer.Sniffer
                 }
                 else
                 {
-                    logger.Error("Not a valid sniffer plugin: {pluginName}", check.PluginName);
+                    logger.Error("Not a valid sniffer plugin: {pluginId}", check.PluginId);
 
                     checkReports.Add(new CsCheckReport(check.Name, 
                         CsReportBuilder.Create()
-                            .AddAsset(check.PluginName)
+                            .AddAsset("invalidPlugin." + check.PluginId, check.Name)
                                 .SetResult(CsReportResult.Error)
                                 .SetSummary("Not a valid sniffer plugin")
                             .Build()));

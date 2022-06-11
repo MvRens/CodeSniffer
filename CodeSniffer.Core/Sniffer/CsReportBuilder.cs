@@ -33,9 +33,9 @@ namespace CodeSniffer.Core.Sniffer
         /// <summary>
         /// Adds an asset to the report.
         /// </summary>
-        public Asset AddAsset(string name)
+        public Asset AddAsset(string id, string name)
         {
-            var asset = new Asset(this, name);
+            var asset = new Asset(this, id, name);
             assets.Add(asset);
 
             return asset;
@@ -61,6 +61,9 @@ namespace CodeSniffer.Core.Sniffer
             private readonly CsReportBuilder builder;
             private Dictionary<string, string>? properties;
 
+            /// <inheritdoc cref="ICsReportAsset.Id"/>
+            public string Id { get; set; }
+
             /// <inheritdoc cref="ICsReportAsset.Name"/>
             public string Name { get; set; }
 
@@ -84,9 +87,10 @@ namespace CodeSniffer.Core.Sniffer
             public string? Output { get; set; }
 
 
-            internal Asset(CsReportBuilder builder, string name)
+            internal Asset(CsReportBuilder builder, string id, string name)
             {
                 this.builder = builder;
+                Id = id;
                 Name = name;
             }
 
@@ -175,9 +179,9 @@ namespace CodeSniffer.Core.Sniffer
 
 
             /// <inheritdoc cref="CsReportBuilder.AddAsset"/>
-            public Asset AddAsset(string name)
+            public Asset AddAsset(string id, string name)
             {
-                return builder.AddAsset(name);
+                return builder.AddAsset(id, name);
             }
 
             /// <inheritdoc cref="CsReportBuilder.Build"/>
@@ -190,6 +194,7 @@ namespace CodeSniffer.Core.Sniffer
             internal ICsReportAsset BuildAsset()
             {
                 return new ReportAsset(
+                    Id,
                     Name,
                     Result, 
                     Summary,
@@ -217,6 +222,7 @@ namespace CodeSniffer.Core.Sniffer
 
         private class ReportAsset : ICsReportAsset
         {
+            public string Id { get; set; }
             public string Name { get; }
             public CsReportResult Result { get; }
             public string? Summary { get; }
@@ -224,8 +230,9 @@ namespace CodeSniffer.Core.Sniffer
             public string? Output { get; }
 
 
-            public ReportAsset(string name, CsReportResult result, string? summary, IReadOnlyDictionary<string, string>? properties, string? output)
+            public ReportAsset(string id, string name, CsReportResult result, string? summary, IReadOnlyDictionary<string, string>? properties, string? output)
             {
+                Id = id;
                 Name = name;
                 Result = result;
                 Summary = summary;

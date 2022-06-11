@@ -16,7 +16,7 @@ export interface DefinitionViewModel
 export interface DefinitionSourceViewModel
 {
   name: string | null;
-  pluginName: string | null;
+  pluginId: string | null;
   configuration: string | null;
 }
 
@@ -24,7 +24,7 @@ export interface DefinitionSourceViewModel
 export interface DefinitionCheckViewModel
 {
   name: string | null;
-  pluginName: string | null;
+  pluginId: string | null;
   configuration: string | null;
 }
 
@@ -40,5 +40,6 @@ export interface PluginViewModel
 {
   id: string;
   name: string;
-  defaultOptions: string;
+  defaultOptions: string | null;
+  optionsHelp: string | null;
 }

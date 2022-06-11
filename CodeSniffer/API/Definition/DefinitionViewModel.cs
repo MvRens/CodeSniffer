@@ -18,7 +18,7 @@ namespace CodeSniffer.API.Definition
         public string? Name { get; set; }
 
         [Required(AllowEmptyStrings = false)]
-        public string? PluginName { get; set; }
+        public string? PluginId { get; set; }
         
         public string? Configuration { get; set; }
     }
@@ -30,7 +30,7 @@ namespace CodeSniffer.API.Definition
         public string? Name { get; set; }
 
         [Required(AllowEmptyStrings = false)]
-        public string? PluginName { get; set; }
+        public string? PluginId { get; set; }
         
         public string? Configuration { get; set; }
     }
