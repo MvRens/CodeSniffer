@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Globalization;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using CodeSniffer.Core.Plugin;
 using CodeSniffer.Core.Source;
@@ -7,7 +8,7 @@ using Serilog;
 namespace CodeSniffer.SourceCodeRepository.Git
 {
     [CsPlugin("git")]
-    public class GitCsSourceCodeRepositoryPlugin : ICsSourceCodeRepositoryPlugin
+    public class GitCsSourceCodeRepositoryPlugin : ICsSourceCodeRepositoryPlugin, ICsPluginHelp
     {
         public string Name => "Git";
         public JsonObject? DefaultOptions => JsonSerializer.SerializeToNode(GitCsSourceCodeRepositoryOptions.Default()) as JsonObject;
@@ -21,6 +22,17 @@ namespace CodeSniffer.SourceCodeRepository.Git
             CsOptionMissingException.ThrowIfEmpty(gitOptions.Url);
 
             return new GitCsSourceCodeRepository(logger, gitOptions);
+        }
+
+
+        public string GetOptionsHelpHtml(IReadOnlyList<CultureInfo> cultures)
+        {
+            var getString = Strings.ResourceManager.CreateGetString(cultures);
+
+            return CsPluginHelpBuilder.Create()
+                .SetSummary(getString(nameof(Strings.HelpSummary)))
+                .AddConfiguration(@"Url", getString(nameof(Strings.HelpUrlSummary)), null, true)
+                .BuildHtml();
         }
     }
 }

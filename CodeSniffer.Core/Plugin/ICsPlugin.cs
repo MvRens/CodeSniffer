@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Nodes;
+﻿using System.Globalization;
+using System.Text.Json.Nodes;
 
 namespace CodeSniffer.Core.Plugin
 {
@@ -29,8 +30,10 @@ namespace CodeSniffer.Core.Plugin
     public interface ICsPluginHelp : ICsPlugin
     {
         /// <summary>
-        /// Help text explaining the supported options in HTML format.
+        /// Returns optional help text explaining the supported configuration options in HTML format.
         /// </summary>
-        string? OptionsHelpHtml { get; }
+        /// <param name="cultures">A list of requested cultures, ordered by preference.</param>
+        /// <returns>The help text in HTML format. Should be in the first requested culture supported by the plugin, or use a fallback culture (preferably English).</returns>
+        string? GetOptionsHelpHtml(IReadOnlyList<CultureInfo> cultures);
     }
 }

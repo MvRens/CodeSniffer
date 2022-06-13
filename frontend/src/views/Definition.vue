@@ -40,7 +40,7 @@
               <label for="sourceConfiguration">{{ t('configuration') }}</label>
               <textarea class="u-full-width configuration" type="text" id="sourceConfiguration" v-model="source.configuration" />
 
-              <!-- TODO options help -->
+              <div v-if="!!sourceOptionsHelp" v-html="sourceOptionsHelp" class="help"></div>
 
               <input type="submit" class="button button-primary" :value="t('toolbar.close')" />
             </form>
@@ -82,7 +82,7 @@
               <label for="checkConfiguration">{{ t('configuration') }}</label>
               <textarea class="u-full-width configuration" type="text" id="checkConfiguration" v-model="check.configuration" />
 
-              <!-- TODO options help -->
+              <div v-if="!!checkOptionsHelp" v-html="checkOptionsHelp" class="help"></div>
 
               <input type="submit" class="button button-primary" :value="t('toolbar.close')" />
             </form>
@@ -140,7 +140,7 @@ en:
 </i18n>
 
 <script lang="ts" setup>
-import { ref, watchEffect, onMounted, reactive } from 'vue';
+import { ref, watchEffect, onMounted, reactive, computed } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import { useNotifications } from '@/lib/notifications';
@@ -367,6 +367,34 @@ function watchCheck(check: DefinitionCheckViewModel): DefinitionCheckViewModel
 
   return reactiveCheck;
 }
+
+
+const sourceOptionsHelp = computed<string | null>(() =>
+{
+  if (editingSource.value === null)
+    return null;
+
+  const source = sources[editingSource.value];
+  if (source.pluginId === null)
+    return null;
+
+  const plugin = sourcePluginOptions.find(p => p.value === source.pluginId);
+  return plugin?.optionsHelp || null;
+});
+
+
+const checkOptionsHelp = computed<string | null>(() =>
+{
+  if (editingCheck.value === null)
+    return null;
+
+  const check = checks[editingCheck.value];
+  if (check.pluginId === null)
+    return null;
+
+  const plugin = checkPluginOptions.find(p => p.value === check.pluginId);
+  return plugin?.optionsHelp || null;
+});
 </script>
 
 <style lang="scss" scoped>
@@ -415,5 +443,73 @@ function watchCheck(check: DefinitionCheckViewModel): DefinitionCheckViewModel
   height: 20em;
   resize: vertical;
   font-family: 'Courier New', Courier, monospace;
+}
+
+
+.help
+{
+  border: solid 1px #c0c0c0;
+  background-color: #f0f0f0;
+
+  padding: .5em;
+  margin-bottom: 1em;
+
+  height: 10em;
+  overflow-y: auto;
+  resize: vertical;
+
+
+  // The generate HTML help from the plugin does not contain the scope
+  // specifiers, so v-deep is required to indicate they should match
+  &::v-deep
+  {
+    .help-summary
+    {
+      display: block;
+    }
+
+    .help-configuration
+    {
+      display: grid;
+      grid-template-columns: auto 1fr;
+    }
+
+    .help-option
+    {
+      display: contents;
+
+
+      .help-option-key
+      {
+        margin-right: 2em;
+        margin-top: 1em;
+      }
+
+
+      &.required .help-option-key
+      {
+        font-weight: bold;
+
+        &::after
+        {
+          content: " (required)";
+          font-weight: normal;
+        }
+      }
+
+
+      .help-option-summary
+      {
+        grid-column: 2;
+        margin-top: 1em;
+      }
+
+
+      .help-option-description
+      {
+        grid-column: 2;
+      }
+    }
+  }
 }
 </style>

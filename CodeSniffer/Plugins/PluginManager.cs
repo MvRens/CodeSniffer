@@ -99,6 +99,13 @@ namespace CodeSniffer.Plugins
             try
             {
                 var pluginContext = new PluginLoadContext(assemblyFilename);
+
+                // Always map CodeSniffer.Core to our version
+                var coreAssembly = typeof(ICsPlugin).Assembly;
+                var coreAssemblyName = coreAssembly.GetName().Name;
+
+                pluginContext.Resolving += (_, name) => name.Name == coreAssemblyName ? coreAssembly : null;
+
                 var keepContext = false;
                 try
                 {

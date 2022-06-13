@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Security.Claims;
 using System.Text.Json;
@@ -13,6 +14,7 @@ using CodeSniffer.Core.Source;
 using CodeSniffer.Plugins;
 using CodeSniffer.Repository.Checks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CodeSniffer.API.Definition
@@ -55,11 +57,32 @@ namespace CodeSniffer.API.Definition
             var sourcePlugins = new List<PluginViewModel>();
             var checkPlugins = new List<PluginViewModel>();
 
+            
+            // Move to a helper method when needed in another controller method
+            var cultures = Request.GetTypedHeaders().AcceptLanguage
+                .OrderByDescending(l => l.Quality ?? 1)
+                .Select(l =>
+                {
+                    try
+                    {
+                        return CultureInfo.GetCultureInfo(l.Value.ToString());
+                    }
+                    catch (CultureNotFoundException)
+                    {
+                        return null;
+                    }
+                })
+                .Where(l => l != null)
+                .Cast<CultureInfo>()
+                .Distinct()
+                .ToList();
+
+
             foreach (var pluginInfo in pluginManager)
             {
                 var pluginViewModel = new PluginViewModel(pluginInfo.Id, pluginInfo.Plugin.Name,
                     pluginInfo.Plugin.DefaultOptions?.ToJsonString(DefaultOptionsSerializerOptions),
-                    pluginInfo.Plugin is ICsPluginHelp pluginHelp ? pluginHelp.OptionsHelpHtml : null);
+                    pluginInfo.Plugin is ICsPluginHelp pluginHelp ? pluginHelp.GetOptionsHelpHtml(cultures) : null);
 
                 // ReSharper disable once ConvertIfStatementToSwitchStatement - not the same! a plugin could implement both.
                 if (pluginInfo.Plugin is ICsSourceCodeRepositoryPlugin)
