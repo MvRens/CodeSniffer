@@ -11,6 +11,7 @@ using CodeSniffer.Auth;
 using CodeSniffer.Core.Plugin;
 using CodeSniffer.Core.Sniffer;
 using CodeSniffer.Core.Source;
+using CodeSniffer.Facade;
 using CodeSniffer.Plugins;
 using CodeSniffer.Repository.Checks;
 using Microsoft.AspNetCore.Authorization;
@@ -22,6 +23,7 @@ namespace CodeSniffer.API.Definition
     [Route("/api/definitions")]
     public class DefinitionController : ControllerBase
     {
+        private readonly IDefinitionFacade definitionFacade;
         private readonly IDefinitionRepository definitionRepository;
         private readonly IPluginManager pluginManager;
 
@@ -32,8 +34,9 @@ namespace CodeSniffer.API.Definition
         };
 
 
-        public DefinitionController(IDefinitionRepository definitionRepository, IPluginManager pluginManager)
+        public DefinitionController(IDefinitionFacade definitionFacade, IDefinitionRepository definitionRepository, IPluginManager pluginManager)
         {
+            this.definitionFacade = definitionFacade;
             this.definitionRepository = definitionRepository;
             this.pluginManager = pluginManager;
         }
@@ -136,7 +139,7 @@ namespace CodeSniffer.API.Definition
         public async ValueTask<ActionResult<string>> InsertDetails([FromBody] DefinitionViewModel viewModel)
         {
             var definition = ViewModelToDefinition(viewModel);
-            var id = await definitionRepository.Insert(definition, GetAuthor());
+            var id = await definitionFacade.Insert(definition, GetAuthor());
             return Ok(id);
         }
 
@@ -149,7 +152,7 @@ namespace CodeSniffer.API.Definition
             
             try
             {
-                await definitionRepository.Update(id, definition, GetAuthor());
+                await definitionFacade.Update(id, definition, GetAuthor());
                 return NoContent();
             }
             catch (InvalidOperationException)
@@ -165,7 +168,7 @@ namespace CodeSniffer.API.Definition
         {
             try
             {
-                await definitionRepository.Remove(id, GetAuthor());
+                await definitionFacade.Remove(id, GetAuthor());
                 return NoContent();
             }
             catch (InvalidOperationException)

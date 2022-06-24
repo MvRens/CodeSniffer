@@ -71,8 +71,11 @@ namespace CodeSniffer.Repository.LiteDB.Checks
             using var connection = await GetConnection();
             var collection = connection.Database.GetCollection<DefinitionRecord>(DefinitionCollection);
 
-            var newRecord = MapDefinition(ObjectId.NewObjectId(), newDefinition, 1, author, null);
-            return collection.Insert(newRecord).ToString();
+            var id = ObjectId.NewObjectId();
+            var newRecord = MapDefinition(id, newDefinition, 1, author, null);
+
+            collection.Insert(newRecord);
+            return id.ToString();
         }
 
 

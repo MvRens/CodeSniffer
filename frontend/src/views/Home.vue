@@ -12,7 +12,7 @@
         <router-link :to="{ name: 'CreateDefinition' }" class="button button-primary" :class="{ disabled: isLoading }">{{ t('definitiontoolbar.create') }}</router-link>
       </div>
 
-      <div v-if="definitions.length === 0">
+      <div v-if="definitions?.length === 0">
         {{ t('nodefinitions' )}}
       </div>
 
@@ -21,7 +21,9 @@
           {{ definition.name }}
           <div class="buttons">
             <router-link :to="{ name: 'EditDefinition', params: { id: definition.id } }" class="button">{{ t('edit') }}</router-link>
-            <button @click="deleteDefinition(definition.id)" class="button">{{ t('delete') }}</button>
+            <button v-if="confirmDeleteId !== definition.id" @click="confirmDeleteDefinition(definition.id)" class="button">{{ t('delete') }}</button>
+            <button v-if="confirmDeleteId === definition.id" @click="deleteDefinition(definition.id)" class="button">{{ t('delete') }}</button>            
+            <button v-if="confirmDeleteId === definition.id" @click="cancelDeleteDefinition()" class="button">{{ t('cancelDelete') }}</button>            
           </div>
         </template>
       </div>
@@ -39,6 +41,7 @@ en:
     create: "Create"
   edit: "Edit"
   delete: "Delete"
+  cancelDelete: "Cancel"
   notifications:
     loadDefinitionsFailed: "Failed to load definitions list: {message}"
     loadStatusMapFailed: "Failed to load definition status: {message}"
@@ -56,13 +59,13 @@ import { DefinitionStatusMap } from '../models/reports';
 const { t } = useI18n();
 const notifications = useNotifications();
 
-const definitions = ref(null as ListDefinitionViewModel[] | null);
-const statusMap = ref(null as DefinitionStatusMap | null);
+const definitions = ref<ListDefinitionViewModel[]>();
+const statusMap = ref<DefinitionStatusMap>();
 
 
 const isLoading = computed(() => 
 {
-  return definitions.value === null || statusMap.value === null;
+  return definitions.value === undefined || statusMap.value === undefined;
 });
 
 
@@ -99,6 +102,35 @@ async function loadStatusMap()
     notifications.alert(t('notifications.loadStatusMapFailed', { message: (e as Error).message }));
   }
 }
+
+
+const confirmDeleteId = ref<string>();
+
+function confirmDeleteDefinition(id: string)
+{
+  confirmDeleteId.value = id;
+}
+
+
+function cancelDeleteDefinition()
+{
+  confirmDeleteId.value = undefined;
+}
+
+
+async function deleteDefinition(id: string)
+{
+  if (definitions.value === undefined)
+    return;
+
+  const response = await axios.delete(`/api/definitions/${encodeURIComponent(id)}`);
+
+  const definitionIndex = definitions.value.findIndex(d => d.id === id);
+  if (definitionIndex > -1)
+    definitions.value.splice(definitionIndex, 1);
+
+  confirmDeleteId.value = undefined;
+}
 </script>
 
 <style lang="scss" scoped>
@@ -107,5 +139,10 @@ async function loadStatusMap()
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
+
+  .buttons
+  {
+    text-align: right;
+  }
 }
 </style>

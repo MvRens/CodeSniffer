@@ -23,8 +23,6 @@ namespace CodeSniffer.Sniffer
         private static readonly TimeSpan MinimumInterval = TimeSpan.FromMinutes(1);
 
         private readonly TimeSpan scanInterval;
-        // TODO keep track of sources and definitions
-        // TODO update when notified by the DefinitionFacade
 
         private readonly CancellationTokenSource cancellationTokenSource = new();
         private Task? monitorTask;
@@ -62,17 +60,26 @@ namespace CodeSniffer.Sniffer
                 throw new InvalidOperationException("Initialized must be called exactly once");
 
             sources = new ConcurrentDictionary<string, IReadOnlyList<ICsSourceCodeRepository>>(
-                definitions
-                    .Select(d => new KeyValuePair<string, IReadOnlyList<ICsSourceCodeRepository>>(
-                        d.Id,
-                        d.Sources.Select(GetSourceCodeRepository)
-                            .Where(s => s != null)
-                            .Select(s => s!)
-                            .ToList()
-                    ))
+                definitions.Select(d => new KeyValuePair<string, IReadOnlyList<ICsSourceCodeRepository>>(d.Id, MapDefinition(d)))
             );
 
             monitorTask = Task.Factory.StartNew(() => MonitorTask(cancellationTokenSource.Token));
+        }
+
+
+        public void DefinitionChanged(string id, CsDefinition newDefinition)
+        {
+            if (sources == null)
+                return;
+
+            var mappedDefinition = MapDefinition(newDefinition);
+            sources.AddOrUpdate(id, mappedDefinition, (_, _) => mappedDefinition);
+        }
+
+
+        public void DefinitionRemoved(string id)
+        {
+            sources?.TryRemove(id, out _);
         }
 
 
@@ -80,6 +87,8 @@ namespace CodeSniffer.Sniffer
         {
             while (!cancellationToken.IsCancellationRequested)
             {
+                logger.Debug("Starting scan");
+
                 if (sources != null)
                 {
                     var groupedSources = sources
@@ -117,6 +126,9 @@ namespace CodeSniffer.Sniffer
                         });
                 }
 
+                // TODO log as information if any new revisions were processed
+                logger.Debug("Finished scan");
+
                 try
                 {
                     await Task.Delay(scanInterval, cancellationToken);
@@ -130,6 +142,8 @@ namespace CodeSniffer.Sniffer
 
         private async ValueTask Scan(ICsSourceCodeRepository sourceCodeRepository, IReadOnlyList<string> definitions, CancellationToken cancellationToken)
         {
+            logger.Debug("Scanning source code repository {sourceCodeRepositoryName} for new revisions", sourceCodeRepository.Name);
+
             await foreach (var revision in sourceCodeRepository.GetRevisions(cancellationToken))
             {
                 if (await sourceCodeStatusRepository.HasRevision(sourceCodeRepository.Id, revision.Id))
@@ -142,9 +156,20 @@ namespace CodeSniffer.Sniffer
 
                 foreach (var definitionId in definitions)
                     await jobRunner.Execute(definitionId, workingCopyPath);
+
+                await sourceCodeStatusRepository.StoreRevision(sourceCodeRepository.Id, revision.Id);
             }
         }
 
+
+
+        private IReadOnlyList<ICsSourceCodeRepository> MapDefinition(CsDefinition definition)
+        {
+            return definition.Sources.Select(GetSourceCodeRepository)
+                .Where(s => s != null)
+                .Select(s => s!)
+                .ToList();
+        }
 
 
         private ICsSourceCodeRepository? GetSourceCodeRepository(CsDefinitionSource source)

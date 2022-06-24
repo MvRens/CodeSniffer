@@ -152,8 +152,8 @@ interface PluginSelectOption
 {
   label: string;
   value: string;
-  defaultOptions: string | null;
-  optionsHelp: string | null;
+  defaultOptions?: string;
+  optionsHelp?: string;
 }
 
 
@@ -168,13 +168,13 @@ const notifications = useNotifications();
 const loading = ref(true);
 const saving = ref(false);
 
-const originalName = ref(null as string | null);
-const name = ref(null as string | null);
+const originalName = ref<string>();
+const name = ref<string>();
 const sources = reactive([] as Array<DefinitionSourceViewModel>)
 const checks = reactive([] as Array<DefinitionCheckViewModel>)
 
-const editingSource = ref(null as number | null);
-const editingCheck = ref(null as number | null);
+const editingSource = ref<number>();
+const editingCheck = ref<number>();
 
 const sourcePluginOptions = reactive([] as Array<PluginSelectOption>);
 const checkPluginOptions = reactive([] as Array<PluginSelectOption>);
@@ -256,9 +256,9 @@ async function loadPlugins()
 }
 
 
-function getOptionsLabel(options: Array<PluginSelectOption>, value: string | null)
+function getOptionsLabel(options: Array<PluginSelectOption>, value?: string)
 {
-  if (value === null)
+  if (value === undefined)
     return t('noplugin');
 
   const option = options.find(o => o.value === value);
@@ -270,11 +270,7 @@ function getOptionsLabel(options: Array<PluginSelectOption>, value: string | nul
 
 function addSource()
 {
-  editingSource.value = sources.push(watchSource({
-    name: null,
-    pluginId: null,
-    configuration: null
-  })) - 1;
+  editingSource.value = sources.push(watchSource({})) - 1;
 }
 
 function editSource(index: number)
@@ -285,7 +281,7 @@ function editSource(index: number)
 function deleteSource(index: number)
 {
   if (index === editingSource.value)
-    editingSource.value = null;
+    editingSource.value = undefined;
 
   if (index < 0 || index >= sources.length)
     return;
@@ -295,7 +291,7 @@ function deleteSource(index: number)
 
 function closeSource()
 {
-  editingSource.value = null;
+  editingSource.value = undefined;
 }
 
 function watchSource(source: DefinitionSourceViewModel): DefinitionSourceViewModel
@@ -311,7 +307,7 @@ function watchSource(source: DefinitionSourceViewModel): DefinitionSourceViewMod
 
       const option = sourcePluginOptions.find(o => o.value === reactiveSource.pluginId);
       if (!!option)
-        reactiveSource.configuration = option.defaultOptions || null; 
+        reactiveSource.configuration = option.defaultOptions; 
     }
   });
 
@@ -320,11 +316,7 @@ function watchSource(source: DefinitionSourceViewModel): DefinitionSourceViewMod
 
 function addCheck()
 {
-  editingCheck.value = checks.push(watchCheck({
-    name: null,
-    pluginId: null,
-    configuration: null
-  })) - 1;
+  editingCheck.value = checks.push(watchCheck({})) - 1;
 }
 
 function editCheck(index: number)
@@ -335,7 +327,7 @@ function editCheck(index: number)
 function deleteCheck(index: number)
 {
   if (index === editingCheck.value)
-    editingCheck.value = null;
+    editingCheck.value = undefined;
 
   if (index < 0 || index >= checks.length)
     return;
@@ -345,7 +337,7 @@ function deleteCheck(index: number)
 
 function closeCheck()
 {
-  editingCheck.value = null;
+  editingCheck.value = undefined;
 }
 
 function watchCheck(check: DefinitionCheckViewModel): DefinitionCheckViewModel
@@ -361,7 +353,7 @@ function watchCheck(check: DefinitionCheckViewModel): DefinitionCheckViewModel
 
       const option = checkPluginOptions.find(o => o.value === reactiveCheck.pluginId);
       if (!!option)
-        reactiveCheck.configuration = option.defaultOptions || null; 
+        reactiveCheck.configuration = option.defaultOptions; 
     }
   });
 
@@ -369,31 +361,31 @@ function watchCheck(check: DefinitionCheckViewModel): DefinitionCheckViewModel
 }
 
 
-const sourceOptionsHelp = computed<string | null>(() =>
+const sourceOptionsHelp = computed<string | undefined>(() =>
 {
-  if (editingSource.value === null)
-    return null;
+  if (editingSource.value === undefined)
+    return undefined;
 
   const source = sources[editingSource.value];
   if (source.pluginId === null)
-    return null;
+    return undefined;
 
   const plugin = sourcePluginOptions.find(p => p.value === source.pluginId);
-  return plugin?.optionsHelp || null;
+  return plugin?.optionsHelp;
 });
 
 
-const checkOptionsHelp = computed<string | null>(() =>
+const checkOptionsHelp = computed<string | undefined>(() =>
 {
-  if (editingCheck.value === null)
-    return null;
+  if (editingCheck.value === undefined)
+    return undefined;
 
   const check = checks[editingCheck.value];
-  if (check.pluginId === null)
-    return null;
+  if (check.pluginId === undefined)
+    return undefined;
 
   const plugin = checkPluginOptions.find(p => p.value === check.pluginId);
-  return plugin?.optionsHelp || null;
+  return plugin?.optionsHelp;
 });
 </script>
 
@@ -459,7 +451,7 @@ const checkOptionsHelp = computed<string | null>(() =>
   resize: vertical;
 
 
-  // The generate HTML help from the plugin does not contain the scope
+  // The generated HTML help from the plugin does not contain the scope
   // specifiers, so v-deep is required to indicate they should match
   &::v-deep
   {

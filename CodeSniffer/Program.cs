@@ -182,6 +182,7 @@ namespace CodeSniffer
             container.Register<ISourceCodeStatusRepository, LiteDbSourceCodeStatusRepository>(instancePerDependencyLifestyle);
             container.Register<IUserRepository, LiteDbUserRepository>(instancePerDependencyLifestyle);
 
+            container.Register<IDefinitionFacade, DefinitionFacade>();
             container.RegisterSingleton<IRepositoryMonitor, RepositoryMonitor>();
             container.RegisterSingleton<IJobRunner, JobRunner>();
             container.RegisterSingleton<IJobResultHandler, JobResultHandler>();

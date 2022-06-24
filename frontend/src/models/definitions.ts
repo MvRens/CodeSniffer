@@ -7,7 +7,7 @@ export interface ListDefinitionViewModel
 
 export interface DefinitionViewModel
 {
-  name: string | null;
+  name?: string;
   sources: Array<DefinitionSourceViewModel>;
   checks: Array<DefinitionCheckViewModel>;
 }
@@ -15,17 +15,17 @@ export interface DefinitionViewModel
 
 export interface DefinitionSourceViewModel
 {
-  name: string | null;
-  pluginId: string | null;
-  configuration: string | null;
+  name?: string;
+  pluginId?: string;
+  configuration?: string;
 }
 
 
 export interface DefinitionCheckViewModel
 {
-  name: string | null;
-  pluginId: string | null;
-  configuration: string | null;
+  name?: string;
+  pluginId?: string;
+  configuration?: string;
 }
 
 
@@ -40,6 +40,6 @@ export interface PluginViewModel
 {
   id: string;
   name: string;
-  defaultOptions: string | null;
-  optionsHelp: string | null;
+  defaultOptions?: string;
+  optionsHelp?: string;
 }

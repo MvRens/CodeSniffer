@@ -2,6 +2,7 @@
 using CodeSniffer.Core.Plugin;
 using CodeSniffer.Core.Source;
 using LibGit2Sharp;
+using LibGit2Sharp.Handlers;
 using Serilog;
 
 namespace CodeSniffer.SourceCodeRepository.Git
@@ -50,7 +51,14 @@ namespace CodeSniffer.SourceCodeRepository.Git
             logger.Debug("Cloning branch {branch} from repository {url}", gitRevision.BranchName, gitRevision.Id);
             Repository.Clone(options.Url, path, new CloneOptions
             {
-                BranchName = gitRevision.BranchName
+                BranchName = gitRevision.BranchName,
+                CredentialsProvider = !string.IsNullOrEmpty(options.Username) || !string.IsNullOrEmpty(options.Password)
+                    ? (_, _, _) => new UsernamePasswordCredentials
+                    {
+                        Username = options.Username,
+                        Password = options.Password
+                    }
+                    : null
             });
 
 
@@ -89,4 +97,4 @@ namespace CodeSniffer.SourceCodeRepository.Git
             }
         }
     }
-}
+} 

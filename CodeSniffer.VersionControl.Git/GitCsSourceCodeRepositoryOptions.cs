@@ -6,15 +6,17 @@ namespace CodeSniffer.SourceCodeRepository.Git
     public class GitCsSourceCodeRepositoryOptions
     {
         public string? Url { get; set; }
-
-        // TODO credentials
+        public string? Username { get; set; }
+        public string? Password { get; set; }
 
 
         public static GitCsSourceCodeRepositoryOptions Default()
         {
             return new GitCsSourceCodeRepositoryOptions
             {
-                Url = "https://example.com/repository.git"
+                Url = "https://example.com/repository.git",
+                Username = "codesniffer",
+                Password = "secret"
             };
         }
     }

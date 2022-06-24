@@ -1,24 +1,24 @@
 using System.Threading;
 using System.Threading.Tasks;
+using CodeSniffer.Facade;
 using CodeSniffer.Repository.Checks;
 using CodeSniffer.Sniffer;
 using Microsoft.Extensions.Hosting;
 using Serilog;
+using SimpleInjector;
 
 namespace CodeSniffer
 {
     public class CodeSnifferService : IHostedService
     {
         private readonly ILogger logger;
-        private readonly IDefinitionRepository definitionRepository;
-        private readonly IRepositoryMonitor repositoryMonitor;
+        private readonly Container container;
 
 
-        public CodeSnifferService(ILogger logger, IDefinitionRepository definitionRepository, IRepositoryMonitor repositoryMonitor)
+        public CodeSnifferService(ILogger logger, Container container)
         {
             this.logger = logger;
-            this.definitionRepository = definitionRepository;
-            this.repositoryMonitor = repositoryMonitor;
+            this.container = container;
         }
 
 
@@ -27,10 +27,7 @@ namespace CodeSniffer
             logger.Information("Service starting...");
 
             logger.Information("Loading definitions...");
-
-            // TODO should this go via the facade instead?
-            var definitions = await definitionRepository.GetAllDetails();
-            repositoryMonitor.Initialize(definitions);
+            await container.GetInstance<IDefinitionFacade>().Initialize();
 
             logger.Information("Service started");
         }
