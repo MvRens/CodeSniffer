@@ -1,58 +1,51 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Security.Claims;
-using System.Text.Json;
-using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using CodeSniffer.Auth;
-using CodeSniffer.Core.Plugin;
-using CodeSniffer.Core.Sniffer;
-using CodeSniffer.Core.Source;
 using CodeSniffer.Facade;
-using CodeSniffer.Plugins;
-using CodeSniffer.Repository.Checks;
+using CodeSniffer.Repository.Source;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CodeSniffer.API.Definition
 {
-    [Route("/api/definitions")]
-    public class DefinitionController : ControllerBase
+    [Route("/api/source")]
+    public class SourceController : ControllerBase
     {
         private readonly IConfigurationFacade configurationFacade;
-        private readonly IDefinitionRepository definitionRepository;
-        private readonly IPluginManager pluginManager;
-
-        private static readonly JsonSerializerOptions DefaultOptionsSerializerOptions = new()
-        {
-            DefaultIgnoreCondition = JsonIgnoreCondition.Never,
-            WriteIndented = true
-        };
+        private readonly ISourceRepository sourceRepository;
 
 
-        public DefinitionController(IConfigurationFacade configurationFacade, IDefinitionRepository definitionRepository, IPluginManager pluginManager)
+        public SourceController(IConfigurationFacade configurationFacade, ISourceRepository sourceRepository)
         {
             this.configurationFacade = configurationFacade;
-            this.definitionRepository = definitionRepository;
-            this.pluginManager = pluginManager;
+            this.sourceRepository = sourceRepository;
         }
 
 
         [HttpGet]
         [Authorize(Policy = CsPolicyNames.Developers)]
-        public async ValueTask<IEnumerable<ListDefinitionViewModel>> List()
+        public async ValueTask<IEnumerable<ListSourceViewModel>> List()
         {
-            var definitions = await definitionRepository.List();
-            var viewModels = definitions.Select(d => new ListDefinitionViewModel(d.Id, d.Name));
+            var definitions = await sourceRepository.ListSources();
+            var viewModels = definitions.Select(d => new ListSourceViewModel(d.Id, d.Name));
 
             return viewModels;
         }
 
 
+        [HttpGet("/groups")]
+        [Authorize(Policy = CsPolicyNames.Developers)]
+        public async ValueTask<IEnumerable<ListSourceGroupViewModel>> ListGroups()
+        {
+            var definitions = await sourceRepository.ListSourceGroups();
+            var viewModels = definitions.Select(d => new ListSourceGroupViewModel(d.Id, d.Name));
+
+            return viewModels;
+        }
+
+
+        /*
         [HttpGet("plugins")]
         [Authorize(Policy = CsPolicyNames.Developers)]
         public PluginsViewModel Plugins()
@@ -134,7 +127,7 @@ namespace CodeSniffer.API.Definition
         public async ValueTask<ActionResult<string>> InsertDetails([FromBody] DefinitionViewModel viewModel)
         {
             var definition = ViewModelToDefinition(viewModel);
-            var id = await configurationFacade.InsertDefinition(definition, GetAuthor());
+            var id = await definitionFacade.Insert(definition, GetAuthor());
             return Ok(id);
         }
 
@@ -147,7 +140,7 @@ namespace CodeSniffer.API.Definition
             
             try
             {
-                await configurationFacade.UpdateDefinition(id, definition, GetAuthor());
+                await definitionFacade.Update(id, definition, GetAuthor());
                 return NoContent();
             }
             catch (InvalidOperationException)
@@ -163,7 +156,7 @@ namespace CodeSniffer.API.Definition
         {
             try
             {
-                await configurationFacade.RemoveDefinition(id, GetAuthor());
+                await definitionFacade.Remove(id, GetAuthor());
                 return NoContent();
             }
             catch (InvalidOperationException)
@@ -199,5 +192,6 @@ namespace CodeSniffer.API.Definition
 
             return JsonNode.Parse(configuration) as JsonObject ?? new JsonObject();
         }
+        */
     }
 }

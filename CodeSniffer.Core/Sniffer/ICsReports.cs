@@ -8,24 +8,24 @@
         /// <summary>
         /// Contains the executed steps and their reports.
         /// </summary>
-        IReadOnlyList<CsCheckReport> Checks { get; }
+        IReadOnlyList<CsJobCheck> Checks { get; }
     }
 
 
     /// <summary>
-    /// Describes a code sniffer step that was run as part of a job.
+    /// Describes a code sniffer check that was run as part of a job.
     /// </summary>
-    public class CsCheckReport
+    public class CsJobCheck
     {
+        /// <summary>
+        /// The Id of the plugin that performed the check.
+        /// </summary>
+        public Guid PluginId { get; }
+
         /// <summary>
         /// The name of the step.
         /// </summary>
-        public string StepName { get; }
-
-
-        /// <inheritdoc cref="CsReportResult"/>
-        public CsReportResult Result { get; }
-
+        public string Name { get; }
 
         /// <summary>
         /// Describes the result of the code sniffer associated with this step.
@@ -33,18 +33,12 @@
         public ICsReport Report { get; }
 
 
-        /// <inheritdoc cref="CsCheckReport"/>
-        public CsCheckReport(string stepName, ICsReport report)
+        /// <inheritdoc cref="CsJobCheck"/>
+        public CsJobCheck(Guid pluginId, string name, ICsReport report)
         {
-            StepName = stepName;
+            PluginId = pluginId;
+            Name = name;
             Report = report;
-
-            Result = CsReportResult.Success;
-            foreach (var asset in report.Assets)
-            {
-                if (asset.Result > Result)
-                    Result = asset.Result;
-            }
         }
     }
 }

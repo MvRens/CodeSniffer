@@ -72,7 +72,7 @@ namespace CodeSniffer.Repository.LiteDB.Checks
             var collection = connection.Database.GetCollection<DefinitionRecord>(DefinitionCollection);
 
             var id = ObjectId.NewObjectId();
-            var newRecord = MapDefinition(id, newDefinition, 1, author, null);
+            var newRecord = MapDefinition(id, newDefinition, 1, author);
 
             collection.Insert(newRecord);
             return id.ToString();
@@ -92,7 +92,7 @@ namespace CodeSniffer.Repository.LiteDB.Checks
             if (currentRecord == null)
                 throw new InvalidOperationException($"Unknown definition Id: {id}");
 
-            var newRecord = MapDefinition(recordId, newDefinition, currentRecord.Version + 1, author, null);
+            var newRecord = MapDefinition(recordId, newDefinition, currentRecord.Version + 1, author);
             if (!newRecord.Changed(currentRecord))
                 return;
 
@@ -104,8 +104,8 @@ namespace CodeSniffer.Repository.LiteDB.Checks
                 currentRecord.Name,
                 currentRecord.Version,
                 currentRecord.Author,
-                currentRecord.RemovedBy,
-                currentRecord.Sources,
+                null,
+                currentRecord.SourceGroupId,
                 currentRecord.Checks
             ));
 
@@ -133,7 +133,7 @@ namespace CodeSniffer.Repository.LiteDB.Checks
                 currentRecord.Version,
                 currentRecord.Author,
                 author,
-                currentRecord.Sources,
+                currentRecord.SourceGroupId,
                 currentRecord.Checks);
 
             var archiveCollection = connection.Database.GetCollection<ArchivedDefinitionRecord>(DefinitionArchiveCollection);
@@ -150,27 +150,20 @@ namespace CodeSniffer.Repository.LiteDB.Checks
                 record.Name,
                 record.Version,
                 record.Author,
-                record.Sources.Select(s => new CsDefinitionSource(s.Name, s.PluginId, ParseConfiguration(s.Configuration))).ToList(),
+                record.SourceGroupId,
                 record.Checks.Select(c => new CsDefinitionCheck(c.Name, c.PluginId, ParseConfiguration(c.Configuration))).ToList()
             );
         }
 
 
-        private static DefinitionRecord MapDefinition(ObjectId id, CsDefinition definition, int version, string author, string? removedBy)
+        private static DefinitionRecord MapDefinition(ObjectId id, CsDefinition definition, int version, string author)
         {
             return new DefinitionRecord(
                 id,
                 definition.Name,
                 version,
                 author,
-                removedBy,
-                definition.Sources
-                    .Select(s => new DefinitionSourceRecord(
-                        s.Name, 
-                        s.PluginId, 
-                        s.Configuration.ToJsonString()
-                    ))
-                    .ToArray(),
+                definition.SourceGroupId,
                 definition.Checks
                     .Select(c => new DefinitionCheckRecord(
                         c.Name,
@@ -188,7 +181,7 @@ namespace CodeSniffer.Repository.LiteDB.Checks
         }
 
 
-        [UsedImplicitly]
+        [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
         private class DefinitionRecord
         {
             [BsonId] 
@@ -197,32 +190,29 @@ namespace CodeSniffer.Repository.LiteDB.Checks
             public string Name { get; }
             public int Version { get; }
             public string Author { get; }
-            public string? RemovedBy { get; }
-            public DefinitionSourceRecord[] Sources { get; }
+            public string SourceGroupId { get; }
             public DefinitionCheckRecord[] Checks { get; }
 
 
             [BsonCtor]
-            public DefinitionRecord(ObjectId id, string name, int version, string author, string? removedBy, BsonArray sources, BsonArray checks)
+            public DefinitionRecord(ObjectId id, string name, int version, string author, string sourceGroupId, BsonArray checks)
             {
                 Id = id;
                 Name = name;
                 Version = version;
                 Author = author;
-                RemovedBy = removedBy;
-                Sources = sources.ToArray<DefinitionSourceRecord>();
+                SourceGroupId = sourceGroupId;
                 Checks = checks.ToArray<DefinitionCheckRecord>();
             }
 
 
-            public DefinitionRecord(ObjectId id, string name, int version, string author, string? removedBy, DefinitionSourceRecord[] sources, DefinitionCheckRecord[] checks)
+            public DefinitionRecord(ObjectId id, string name, int version, string author, string sourceGroupId, DefinitionCheckRecord[] checks)
             {
                 Id = id;
                 Name = name;
                 Version = version;
                 Author = author;
-                RemovedBy = removedBy;
-                Sources = sources;
+                SourceGroupId = sourceGroupId;
                 Checks = checks;
             }
 
@@ -230,42 +220,46 @@ namespace CodeSniffer.Repository.LiteDB.Checks
             public bool Changed(DefinitionRecord reference)
             {
                 return !string.Equals(reference.Name, Name, StringComparison.InvariantCulture) ||
-                       !reference.Sources.SequenceEqual(Sources) ||
+                       !string.Equals(reference.SourceGroupId, SourceGroupId, StringComparison.InvariantCulture) ||
                        !reference.Checks.SequenceEqual(Checks);
             }
         }
 
 
-        [UsedImplicitly]
+        [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
         private class ArchivedDefinitionRecord : DefinitionRecord
         {
             public ObjectId OriginalId { get; }
+            public string? RemovedBy { get; }
 
             [BsonCtor]
             public ArchivedDefinitionRecord(ObjectId id, ObjectId originalId, string name, int version, string author, string? removedBy, BsonArray sources, BsonArray checks)
-                : base(id, name, version, author, removedBy, sources, checks)
+                : base(id, name, version, author, sources, checks)
             {
                 OriginalId = originalId;
+                RemovedBy = removedBy;
             }
 
 
-            public ArchivedDefinitionRecord(ObjectId id, ObjectId originalId, string name, int version, string author, string? removedBy, DefinitionSourceRecord[] sources, DefinitionCheckRecord[] checks)
-                : base(id, name, version, author, removedBy, sources, checks)
+            public ArchivedDefinitionRecord(ObjectId id, ObjectId originalId, string name, int version, string author, string? removedBy, string sourceGroupId, DefinitionCheckRecord[] checks)
+                : base(id, name, version, author, sourceGroupId, checks)
             {
                 OriginalId = originalId;
+                RemovedBy = removedBy;
             }
         }
 
 
+        [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
         private class DefinitionSourceRecord : IEquatable<DefinitionSourceRecord>
         {
             public string Name { get; }
-            public string PluginId { get; }
+            public Guid PluginId { get; }
             public string Configuration { get; }
 
 
             [BsonCtor]
-            public DefinitionSourceRecord(string name, string pluginId, string configuration)
+            public DefinitionSourceRecord(string name, Guid pluginId, string configuration)
             {
                 Name = name;
                 PluginId = pluginId;
@@ -296,15 +290,16 @@ namespace CodeSniffer.Repository.LiteDB.Checks
         }
 
 
+        [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
         private class DefinitionCheckRecord : IEquatable<DefinitionCheckRecord>
         {
             public string Name { get; }
-            public string PluginId { get; }
+            public Guid PluginId { get; }
             public string Configuration { get; }
 
 
             [BsonCtor]
-            public DefinitionCheckRecord(string name, string pluginId, string configuration)
+            public DefinitionCheckRecord(string name, Guid pluginId, string configuration)
             {
                 Name = name;
                 PluginId = pluginId;
@@ -334,7 +329,7 @@ namespace CodeSniffer.Repository.LiteDB.Checks
         }
 
 
-        [UsedImplicitly]
+        [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
         private class DefinitionListRecord
         {
             [BsonId]

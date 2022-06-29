@@ -24,24 +24,24 @@ namespace CodeSniffer.Repository.LiteDB.Source
         }
 
 
-        public async ValueTask<bool> HasRevision(string sourceCodeRepositoryId, string revisionId)
+        public async ValueTask<bool> HasRevision(string sourceId, string revisionId)
         {
             using var connection = await GetConnection();
             var revisionCollection = connection.Database.GetCollection<RevisionRecord>(RevisionCollection);
 
-            return revisionCollection.Exists(r => r.RevisionId == revisionId && r.RepositoryId == sourceCodeRepositoryId);
+            return revisionCollection.Exists(r => r.RevisionId == revisionId && r.SourceId == sourceId);
         }
 
 
-        public async ValueTask StoreRevision(string sourceCodeRepositoryId, string revisionId)
+        public async ValueTask StoreRevision(string sourceId, string revisionId)
         {
             using var connection = await GetConnection();
             var revisionCollection = connection.Database.GetCollection<RevisionRecord>(RevisionCollection);
 
-            if (revisionCollection.Exists(r => r.RevisionId == revisionId && r.RepositoryId == sourceCodeRepositoryId))
+            if (revisionCollection.Exists(r => r.RevisionId == revisionId && r.SourceId == sourceId))
                 return;
 
-            revisionCollection.Insert(new RevisionRecord(ObjectId.NewObjectId(), sourceCodeRepositoryId, revisionId));
+            revisionCollection.Insert(new RevisionRecord(ObjectId.NewObjectId(), sourceId, revisionId));
         }
 
 
@@ -51,15 +51,15 @@ namespace CodeSniffer.Repository.LiteDB.Source
             [BsonId]
             public ObjectId Id { get; }
 
-            public string RepositoryId { get; }
+            public string SourceId { get; }
             public string RevisionId{ get; }
 
 
             [BsonCtor]
-            public RevisionRecord(ObjectId id, string repositoryId, string revisionId)
+            public RevisionRecord(ObjectId id, string sourceId, string revisionId)
             {
                 Id = id;
-                RepositoryId = repositoryId;
+                SourceId = sourceId;
                 RevisionId = revisionId;
             }
         }

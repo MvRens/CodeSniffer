@@ -33,7 +33,7 @@ namespace CodeSniffer.Repository.LiteDB.Users
             {
                 logger.Information("No users found, creating default admin user");
                 userCollection.Insert(new UserRecord(ObjectId.NewObjectId(), "admin", "Admin", "admin@localhost",
-                    HashPassword("admin"), "admin", false, "System", null));
+                    HashPassword("admin"), "admin", false, "System"));
             }
 
             return default;
@@ -87,7 +87,7 @@ namespace CodeSniffer.Repository.LiteDB.Users
             using var connection = await GetConnection();
             var collection = connection.Database.GetCollection<UserRecord>(UserCollection);
 
-            var newRecord = MapUser(ObjectId.NewObjectId(), newUser, HashPassword(password), author, null);
+            var newRecord = MapUser(ObjectId.NewObjectId(), newUser, HashPassword(password), author);
             return collection.Insert(newRecord).ToString();
         }
 
@@ -105,7 +105,7 @@ namespace CodeSniffer.Repository.LiteDB.Users
             if (currentRecord == null)
                 throw new InvalidOperationException($"Unknown user Id: {id}");
 
-            var newRecord = MapUser(recordId, newUser, HashPassword(password) ?? currentRecord.HashedPassword, author, null);
+            var newRecord = MapUser(recordId, newUser, HashPassword(password) ?? currentRecord.HashedPassword, author);
             if (!newRecord.Changed(currentRecord))
                 return;
 
@@ -120,7 +120,7 @@ namespace CodeSniffer.Repository.LiteDB.Users
                 currentRecord.Role,
                 currentRecord.Notifications,
                 currentRecord.Author,
-                currentRecord.RemovedBy
+                null
             ));
 
             collection.Update(recordId, newRecord);
@@ -174,7 +174,7 @@ namespace CodeSniffer.Repository.LiteDB.Users
         }
 
 
-        private static UserRecord MapUser(ObjectId id, CsUser user, string password, string author, string? removedBy)
+        private static UserRecord MapUser(ObjectId id, CsUser user, string password, string author)
         {
             return new UserRecord(
                 id,
@@ -184,8 +184,7 @@ namespace CodeSniffer.Repository.LiteDB.Users
                 password,
                 user.Role,
                 user.Notifications,
-                author,
-                removedBy
+                author
             );
         }
 
@@ -204,7 +203,7 @@ namespace CodeSniffer.Repository.LiteDB.Users
 
 
 
-        [UsedImplicitly]
+        [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
         private class UserRecord
         {
             [BsonId] 
@@ -219,11 +218,10 @@ namespace CodeSniffer.Repository.LiteDB.Users
             public bool Notifications { get; }
 
             public string Author { get; }
-            public string? RemovedBy { get; }
 
 
             [BsonCtor]
-            public UserRecord(ObjectId id, string username, string displayName, string email, string hashedPassword, string role, bool notifications, string author, string? removedBy)
+            public UserRecord(ObjectId id, string username, string displayName, string email, string hashedPassword, string role, bool notifications, string author)
             {
                 Id = id;
                 Username = username;
@@ -233,7 +231,6 @@ namespace CodeSniffer.Repository.LiteDB.Users
                 Role = role;
                 Notifications = notifications;
                 Author = author;
-                RemovedBy = removedBy;
             }
 
 
@@ -247,21 +244,23 @@ namespace CodeSniffer.Repository.LiteDB.Users
         }
 
 
-        [UsedImplicitly]
+        [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
         private class ArchivedUserRecord : UserRecord
         {
             public ObjectId OriginalId { get; }
+            public string? RemovedBy { get; }
 
             [BsonCtor]
             public ArchivedUserRecord(ObjectId id, ObjectId originalId, string username, string displayName, string email, string role, bool notifications, string author, string? removedBy)
-                : base(id, username, displayName, email, "<redacted>", role, notifications, author, removedBy)
+                : base(id, username, displayName, email, "<redacted>", role, notifications, author)
             {
                 OriginalId = originalId;
+                RemovedBy = removedBy;
             }
         }
 
 
-        [UsedImplicitly]
+        [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
         private class UserListRecord
         {
             [BsonId]

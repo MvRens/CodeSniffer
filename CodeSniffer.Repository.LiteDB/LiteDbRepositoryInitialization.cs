@@ -21,6 +21,7 @@ namespace CodeSniffer.Repository.LiteDB
         public async ValueTask Perform(ILiteDatabase database, string _)
         {
             await LiteDbDefinitionRepository.Initialize(database);
+            await LiteDbSourceRepository.Initialize(database);
             await LiteDbReportRepository.Initialize(database);
             await LiteDbSourceCodeStatusRepository.Initialize(database);
             await LiteDbUserRepository.Initialize(database, logger);

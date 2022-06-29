@@ -1,4 +1,6 @@
-﻿namespace CodeSniffer.API.Definition
+﻿using System;
+
+namespace CodeSniffer.API.Definition
 {
     public class PluginsViewModel
     {
@@ -16,13 +18,13 @@
 
     public class PluginViewModel
     {
-        public string Id { get; }
+        public Guid Id { get; }
         public string Name { get; }
         public string? DefaultOptions { get; }
         public string? OptionsHelp { get; }
 
 
-        public PluginViewModel(string id, string name, string? defaultOptions, string? optionsHelp)
+        public PluginViewModel(Guid id, string name, string? defaultOptions, string? optionsHelp)
         {
             Id = id;
             Name = name;

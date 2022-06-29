@@ -1,9 +1,10 @@
 ﻿using System.Threading.Tasks;
+using CodeSniffer.Core.Sniffer;
 
 namespace CodeSniffer.Sniffer
 {
     public interface IJobRunner
     {
-        ValueTask Execute(string definitionId, string workingCopyPath);
+        ValueTask<ICsJobResult> Execute(string definitionId, string workingCopyPath);
     }
 }

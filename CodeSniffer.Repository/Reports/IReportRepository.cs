@@ -4,27 +4,22 @@ namespace CodeSniffer.Repository.Reports
 {
     public interface IReportRepository
     {
-        ValueTask<string> Store(ICsJobReport report);
+        ValueTask<string> Store(ICsScanReport report);
         ValueTask<IReadOnlyDictionary<string, CsReportResult>> GetDefinitionsStatus();
     }
 
 
-    public interface ICsJobReport
+    public interface ICsScanReport
     {
         public string DefinitionId { get; }
-        public IReadOnlyList<ICsSourceReport> Sources { get; }
+        public string SourceId { get; }
+        public string RevisionId { get; }
+        public string RevisionName { get; }
+        public IReadOnlyList<ICsScanReportCheck> Checks { get; }
     }
 
 
-    public interface ICsSourceReport
-    {
-        public Guid PluginId { get; }
-        public string Name { get; }
-        public IReadOnlyList<ICsCheckReport> Checks { get; }
-    }
-
-
-    public interface ICsCheckReport
+    public interface ICsScanReportCheck
     {
         public Guid PluginId { get; }
         public string Name { get; }

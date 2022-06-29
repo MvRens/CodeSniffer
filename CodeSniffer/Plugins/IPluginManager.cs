@@ -1,11 +1,11 @@
-﻿using System.Collections.Generic;
-using CodeSniffer.Core.Plugin;
+﻿using System;
+using System.Collections.Generic;
 
 namespace CodeSniffer.Plugins
 {
     public interface IPluginManager : IEnumerable<ICsPluginInfo>
     {
-        ICsPluginInfo? ByName(string name);
+        ICsPluginInfo? ById(Guid id);
         IEnumerable<T> ByType<T>() where T : ICsPluginInfo;
     }
 }

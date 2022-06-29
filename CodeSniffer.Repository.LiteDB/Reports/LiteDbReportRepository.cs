@@ -8,7 +8,6 @@ namespace CodeSniffer.Repository.LiteDB.Reports
     public class LiteDbReportRepository : BaseLiteDbRepository, IReportRepository
     {
         private const string ReportCollection = "Report";
-        private const string ReportSourceCollection = "ReportSource";
         //private const string ReportArchiveCollection = "ReportArchive";
 
 
@@ -23,9 +22,6 @@ namespace CodeSniffer.Repository.LiteDB.Reports
             var reportCollection = database.GetCollection<ReportRecord>(ReportCollection);
             reportCollection.EnsureIndex(r => r.DefinitionId);
 
-            var reportSourceCollection = database.GetCollection<ReportSourceRecord>(ReportSourceCollection);
-            reportSourceCollection.EnsureIndex(r => r.ReportId);
-
             //var reportArchiveCollection = database.GetCollection<ReportRecord>(ReportArchiveCollection);
             //reportArchiveCollection.EnsureIndex(r => r.DefinitionId);
 
@@ -33,69 +29,51 @@ namespace CodeSniffer.Repository.LiteDB.Reports
         }
 
 
-        public async ValueTask<string> Store(ICsJobReport report)
+        public async ValueTask<string> Store(ICsScanReport report)
         {
             using var connection = await GetConnection();
             var reportCollection = connection.Database.GetCollection<ReportRecord>(ReportCollection);
-            var reportSourceCollection = connection.Database.GetCollection<ReportSourceRecord>(ReportSourceCollection);
 
             var reportId = ObjectId.NewObjectId();
             var timestamp = DateTime.UtcNow;
             var reportResult = CsReportResult.Success;
 
 
-            foreach (var source in report.Sources)
-            {
-                if (source.Checks.Count == 0)
-                    continue;
+            var checks = report.Checks
+                .Select(c =>
+                {
+                    var assets = c.Report.Assets
+                        .Select(a => new ReportAssetRecord(
+                            a.Name,
+                            a.Result,
+                            a.Summary,
+                            a.Properties?.ToDictionary(p => p.Key, p => p.Value),
+                            a.Output
+                        ))
+                        .ToArray();
 
-                var sourceResult = CsReportResult.Success;
-                var checks = source.Checks
-                    .Select(c =>
-                    {
-                        var assets = c.Report.Assets
-                            .Select(a => new ReportAssetRecord(
-                                a.Name,
-                                a.Result,
-                                a.Summary,
-                                a.Properties?.ToDictionary(p => p.Key, p => p.Value),
-                                a.Output
-                            ))
-                            .ToArray();
+                    var result = assets.Length > 0 ? assets.Max(a => a.Result) : CsReportResult.Success;
+                    if (result > reportResult)
+                        reportResult = result;
 
-                        var result = assets.Length > 0 ? assets.Max(a => a.Result) : CsReportResult.Success;
-                        if (result > sourceResult)
-                            sourceResult = result;
+                    return new ReportCheckRecord(
+                        result,
+                        c.Report.Configuration?.ToDictionary(p => p.Key, p => p.Value),
+                        assets);
+                })
+                .ToArray();
 
-                        if (result > reportResult)
-                            sourceResult = result;
-
-                        return new ReportCheckRecord(
-                            result,
-                            c.Report.Configuration?.ToDictionary(p => p.Key, p => p.Value),
-                            assets);
-                    })
-                    .ToArray();
-
-
-                var sourceRecord = new ReportSourceRecord(
-                    ObjectId.NewObjectId(),
-                    reportId,
-                    new ObjectId(report.DefinitionId),
-                    source.Name,
-                    timestamp,
-                    sourceResult,
-                    checks);
-
-                reportSourceCollection.Insert(sourceRecord);
-            }
 
 
             var record = new ReportRecord(
                 reportId,
                 new ObjectId(report.DefinitionId),
+                new ObjectId(report.SourceId),
+                report.RevisionId,
+                report.RevisionName,
                 timestamp,
-                reportResult
+                reportResult,
+                checks
             );
 
             reportCollection.Insert(record);
@@ -141,42 +119,22 @@ namespace CodeSniffer.Repository.LiteDB.Reports
             public ObjectId Id { get; }
 
             public ObjectId DefinitionId { get; }
+            public ObjectId SourceId { get; }
+            public string RevisionId { get; }
+            public string RevisionName { get; }
             public DateTime Timestamp { get; }
             public CsReportResult Result { get; }
+            public ReportCheckRecord[] Checks { get; }
 
 
             [BsonCtor]
-            public ReportRecord(ObjectId id, ObjectId definitionId, DateTime timestamp, CsReportResult result)
+            public ReportRecord(ObjectId id, ObjectId definitionId, ObjectId sourceId, string revisionId, string revisionName, DateTime timestamp, CsReportResult result, ReportCheckRecord[] checks)
             {
                 Id = id;
                 DefinitionId = definitionId;
-                Timestamp = timestamp;
-                Result = result;
-            }
-        }
-
-
-        [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
-        private class ReportSourceRecord
-        {
-            [BsonId]
-            public ObjectId Id { get; }
-
-            public ObjectId ReportId { get; }
-            public ObjectId DefinitionId { get; }
-            public string SourceName { get; }
-            public DateTime Timestamp { get; }
-            public CsReportResult Result { get; }
-            public ReportCheckRecord[] Checks{ get; }
-
-
-            [BsonCtor]
-            public ReportSourceRecord(ObjectId id, ObjectId reportId, ObjectId definitionId, string sourceName, DateTime timestamp, CsReportResult result, ReportCheckRecord[] checks)
-            {
-                Id = id;
-                ReportId = reportId;
-                DefinitionId = definitionId;
-                SourceName = sourceName;
+                SourceId = sourceId;
+                RevisionId = revisionId;
+                RevisionName = revisionName;
                 Timestamp = timestamp;
                 Result = result;
                 Checks = checks;

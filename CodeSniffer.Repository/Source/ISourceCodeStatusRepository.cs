@@ -2,7 +2,7 @@
 {
     public interface ISourceCodeStatusRepository
     {
-        ValueTask<bool> HasRevision(string sourceCodeRepositoryId, string revisionId);
-        ValueTask StoreRevision(string sourceCodeRepositoryId, string revisionId);
+        ValueTask<bool> HasRevision(string sourceId, string revisionId);
+        ValueTask StoreRevision(string sourceId, string revisionId);
     }
 }

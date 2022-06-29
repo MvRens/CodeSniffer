@@ -15,7 +15,7 @@ namespace CodeSniffer.Plugins
     public class PluginManager : IPluginManager, IDisposable
     {
         private readonly ILogger logger;
-        private readonly Dictionary<string, LoadedPlugin> loadedPlugins = new();
+        private readonly Dictionary<Guid, LoadedPlugin> loadedPlugins = new();
 
         //private string[]? pluginPaths;
 
@@ -174,9 +174,9 @@ namespace CodeSniffer.Plugins
         }
 
 
-        public ICsPluginInfo? ByName(string name)
+        public ICsPluginInfo? ById(Guid id)
         {
-            return loadedPlugins.TryGetValue(name, out var loadedPlugin)
+            return loadedPlugins.TryGetValue(id, out var loadedPlugin)
                 ? loadedPlugin.Plugin
                 : null;
         }
@@ -219,11 +219,11 @@ namespace CodeSniffer.Plugins
 
         private class PluginInfo : ICsPluginInfo
         {
-            public string Id { get; }
+            public Guid Id { get; }
             public ICsPlugin Plugin { get; }
 
 
-            public PluginInfo(string id, ICsPlugin plugin)
+            public PluginInfo(Guid id, ICsPlugin plugin)
             {
                 Plugin = plugin;
                 Id = id;

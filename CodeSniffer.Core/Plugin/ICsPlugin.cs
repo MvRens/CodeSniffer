@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using System.Text.Json.Nodes;
+using JetBrains.Annotations;
 
 namespace CodeSniffer.Core.Plugin
 {

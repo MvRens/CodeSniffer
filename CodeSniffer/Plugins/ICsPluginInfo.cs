@@ -1,4 +1,5 @@
-﻿using CodeSniffer.Core.Plugin;
+﻿using System;
+using CodeSniffer.Core.Plugin;
 
 namespace CodeSniffer.Plugins
 {
@@ -7,7 +8,7 @@ namespace CodeSniffer.Plugins
         /// <summary>
         /// The unique ID of the plugin.
         /// </summary>
-        public string Id { get; }
+        public Guid Id { get; }
 
 
         /// <summary>

@@ -30,7 +30,7 @@ export interface Login
   login(token: string): void;
   logout(): void;
 
-  isAdmin(): void;
+  isAdmin(): boolean;
 
   bearerToken: Ref<string | null>;
 }

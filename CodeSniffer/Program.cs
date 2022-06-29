@@ -124,9 +124,9 @@ namespace CodeSniffer
         private static AppSettings LoadAppSettings()
         {
             var appSettings = new AppSettings();
-            
-            // TODO check environment for appsettings file location or default to the application path
-            // TODO load from file
+
+            // TODO MUSTHAVE check environment for appsettings file location or default to the application path
+            // TODO MUSTHAVE load from file
 
             return appSettings;
         }
@@ -177,15 +177,16 @@ namespace CodeSniffer
             });
 
             container.Register<ILiteDbConnectionString>(() => new StaticLiteDbConnectionString(appSettings.DbConnectionString), instancePerDependencyLifestyle);
+            container.Register<ISourceRepository, LiteDbSourceRepository>(instancePerDependencyLifestyle);
             container.Register<IDefinitionRepository, LiteDbDefinitionRepository>(instancePerDependencyLifestyle);
             container.Register<IReportRepository, LiteDbReportRepository>(instancePerDependencyLifestyle);
             container.Register<ISourceCodeStatusRepository, LiteDbSourceCodeStatusRepository>(instancePerDependencyLifestyle);
             container.Register<IUserRepository, LiteDbUserRepository>(instancePerDependencyLifestyle);
 
-            container.Register<IDefinitionFacade, DefinitionFacade>();
+            container.Register<IConfigurationFacade, ConfigurationFacade>();
             container.RegisterSingleton<IRepositoryMonitor, RepositoryMonitor>();
             container.RegisterSingleton<IJobRunner, JobRunner>();
-            container.RegisterSingleton<IJobResultHandler, JobResultHandler>();
+            container.RegisterSingleton<IReportFacade, ReportFacade>();
 
             return container;
         }

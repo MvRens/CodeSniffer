@@ -16,16 +16,16 @@ namespace CodeSniffer.Core.Plugin
         /// Identifies the plugin for use in configuration files.
         /// </summary>
         /// <remarks>
-        /// Should be a JSON-friendly id and stable between versions of the same plugin.
-        /// Plugin names must be unique per type of plugin.
+        /// Should be stable between versions of the same plugin.
         /// </remarks>
-        public string Id { get; }
+        public Guid Id { get; }
 
 
         /// <inheritdoc />
-        public CsPluginAttribute(string id)
+        /// <param name="guid">Must be a valid GUID string. Presented as string to allow for a compile-time constant.</param>
+        public CsPluginAttribute(string guid)
         {
-            Id = id;
+            Id = Guid.Parse(guid);
         }
     }
 }

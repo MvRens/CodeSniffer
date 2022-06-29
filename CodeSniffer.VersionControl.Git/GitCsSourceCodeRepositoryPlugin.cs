@@ -7,7 +7,7 @@ using Serilog;
 
 namespace CodeSniffer.SourceCodeRepository.Git
 {
-    [CsPlugin("git")]
+    [CsPlugin("a7c87e17-10eb-4c69-b515-9eff5710d457")]
     public class GitCsSourceCodeRepositoryPlugin : ICsSourceCodeRepositoryPlugin, ICsPluginHelp
     {
         public string Name => "Git";

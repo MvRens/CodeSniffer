@@ -3,13 +3,13 @@ using System.ComponentModel.DataAnnotations;
 
 namespace CodeSniffer.API.Definition
 {
-    public class ListDefinitionViewModel
+    public class ListSourceViewModel
     {
         public string Id { get; }
         public string Name { get; }
 
 
-        public ListDefinitionViewModel(string id, string name)
+        public ListSourceViewModel(string id, string name)
         {
             Id = id;
             Name = name;
@@ -17,7 +17,21 @@ namespace CodeSniffer.API.Definition
     }
 
 
-    public class DefinitionViewModel
+    public class ListSourceGroupViewModel
+    {
+        public string Id { get; }
+        public string Name { get; }
+
+
+        public ListSourceGroupViewModel(string id, string name)
+        {
+            Id = id;
+            Name = name;
+        }
+    }
+
+    /*
+    public class SourceViewModel
     {
         [Required(AllowEmptyStrings = false)]
         public string? Name { get; set; }
@@ -25,11 +39,11 @@ namespace CodeSniffer.API.Definition
         [Required(AllowEmptyStrings = false)]
         public string? SourceGroupId { get; set; }
 
-        public DefinitionCheckViewModel[]? Checks { get; set; }
+        public SourceCheckViewModel[]? Checks { get; set; }
     }
 
 
-    public class DefinitionSourceViewModel
+    public class SourceSourceViewModel
     {
         [Required(AllowEmptyStrings = false)]
         public string? Name { get; set; }
@@ -41,7 +55,7 @@ namespace CodeSniffer.API.Definition
     }
 
 
-    public class DefinitionCheckViewModel
+    public class SourceCheckViewModel
     {
         [Required(AllowEmptyStrings = false)]
         public string? Name { get; set; }
@@ -51,4 +65,5 @@ namespace CodeSniffer.API.Definition
         
         public string? Configuration { get; set; }
     }
+*/
 }
