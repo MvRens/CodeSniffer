@@ -212,6 +212,7 @@ namespace CodeSniffer.Sniffer
 
             await foreach (var revision in sourceCodeRepository.GetRevisions(cancellationToken))
             {
+                // TODO also scan again if the definition(s) have changed, so you don't need a new commit to trigger a scan
                 if (await sourceCodeStatusRepository.HasRevision(sourceId, revision.Id))
                 {
                     logger.Debug("Found known revision {revisionName} for source code repository {sourceId}, skipping", revision.Name, sourceId);

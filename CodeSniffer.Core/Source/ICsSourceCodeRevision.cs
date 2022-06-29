@@ -18,5 +18,7 @@
         /// The name of the revision for display purposes.
         /// </summary>
         string Name { get; }
+
+        // TODO introduce Branch as a first-class concept? so the UI can filter / group by branch.
     }
 }

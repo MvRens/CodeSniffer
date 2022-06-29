@@ -31,6 +31,18 @@ namespace CodeSniffer.Core.Sniffer
 
 
         /// <summary>
+        /// Adds information about the check configuration.
+        /// </summary>
+        /// <param name="label">A unique label describing the configuration value.</param>
+        /// <param name="value">The configuration value for display purposes.</param>
+        public CsReportBuilder SetConfiguration(string label, string value)
+        {
+            configuration[label] = value;
+            return this;
+        }
+
+
+        /// <summary>
         /// Adds an asset to the report.
         /// </summary>
         public Asset AddAsset(string id, string name)
@@ -177,6 +189,12 @@ namespace CodeSniffer.Core.Sniffer
                 return this;
             }
 
+
+            /// <inheritdoc cref="CsReportBuilder.SetConfiguration"/>
+            public CsReportBuilder SetConfiguration(string label, string value)
+            {
+                return builder.SetConfiguration(label, value);
+            }
 
             /// <inheritdoc cref="CsReportBuilder.AddAsset"/>
             public Asset AddAsset(string id, string name)
