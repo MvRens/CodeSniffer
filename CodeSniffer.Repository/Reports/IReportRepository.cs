@@ -15,6 +15,7 @@ namespace CodeSniffer.Repository.Reports
         public string SourceId { get; }
         public string RevisionId { get; }
         public string RevisionName { get; }
+        public string Branch { get; }
         public IReadOnlyList<ICsScanReportCheck> Checks { get; }
     }
 

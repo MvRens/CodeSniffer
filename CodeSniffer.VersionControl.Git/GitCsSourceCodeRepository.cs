@@ -42,10 +42,10 @@ namespace CodeSniffer.SourceCodeRepository.Git
         {
             var gitRevision = (GitCsSourceCodeRevision)revision;
 
-            logger.Debug("Cloning branch {branch} from repository {url}", gitRevision.BranchName, gitRevision.Id);
+            logger.Debug("Cloning branch {branch} from repository {url}", gitRevision.Branch, gitRevision.Id);
             Repository.Clone(options.Url, path, new CloneOptions
             {
-                BranchName = gitRevision.BranchName,
+                BranchName = gitRevision.Branch,
                 CredentialsProvider = !string.IsNullOrEmpty(options.Username) || !string.IsNullOrEmpty(options.Password)
                     ? (_, _, _) => new UsernamePasswordCredentials
                     {
@@ -78,16 +78,16 @@ namespace CodeSniffer.SourceCodeRepository.Git
         private class GitCsSourceCodeRevision : ICsSourceCodeRevision
         {
             public string Id => Sha;
-            public string Name => $"{BranchName} - {Sha}";
+            public string Name => $"{Branch} - {Sha}";
+            public string Branch { get; }
 
             public string Sha { get; }
-            public string BranchName { get; }
 
 
-            public GitCsSourceCodeRevision(string sha, string branchName)
+            public GitCsSourceCodeRevision(string sha, string branch)
             {
                 Sha = sha;
-                BranchName = branchName;
+                Branch = branch;
             }
         }
     }

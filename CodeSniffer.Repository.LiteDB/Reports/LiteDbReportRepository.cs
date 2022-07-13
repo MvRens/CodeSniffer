@@ -71,6 +71,7 @@ namespace CodeSniffer.Repository.LiteDB.Reports
                 new ObjectId(report.SourceId),
                 report.RevisionId,
                 report.RevisionName,
+                report.Branch,
                 timestamp,
                 reportResult,
                 checks
@@ -122,19 +123,21 @@ namespace CodeSniffer.Repository.LiteDB.Reports
             public ObjectId SourceId { get; }
             public string RevisionId { get; }
             public string RevisionName { get; }
+            public string Branch { get; }
             public DateTime Timestamp { get; }
             public CsReportResult Result { get; }
             public ReportCheckRecord[] Checks { get; }
 
 
             [BsonCtor]
-            public ReportRecord(ObjectId id, ObjectId definitionId, ObjectId sourceId, string revisionId, string revisionName, DateTime timestamp, CsReportResult result, ReportCheckRecord[] checks)
+            public ReportRecord(ObjectId id, ObjectId definitionId, ObjectId sourceId, string revisionId, string revisionName, string branch, DateTime timestamp, CsReportResult result, ReportCheckRecord[] checks)
             {
                 Id = id;
                 DefinitionId = definitionId;
                 SourceId = sourceId;
                 RevisionId = revisionId;
                 RevisionName = revisionName;
+                Branch = branch;
                 Timestamp = timestamp;
                 Result = result;
                 Checks = checks;

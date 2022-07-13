@@ -19,6 +19,10 @@
         /// </summary>
         string Name { get; }
 
-        // TODO introduce Branch as a first-class concept? so the UI can filter / group by branch.
+
+        /// <summary>
+        /// The name of the branch the revision belongs to.
+        /// </summary>
+        string Branch { get; }
     }
 }

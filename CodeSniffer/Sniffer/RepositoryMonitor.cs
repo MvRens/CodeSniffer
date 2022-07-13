@@ -212,7 +212,7 @@ namespace CodeSniffer.Sniffer
 
             await foreach (var revision in sourceCodeRepository.GetRevisions(cancellationToken))
             {
-                // TODO also scan again if the definition(s) have changed, so you don't need a new commit to trigger a scan
+                // TODO MUSTHAVE also scan again if the definition(s) have changed, so you don't need a new commit to trigger a scan
                 if (await sourceCodeStatusRepository.HasRevision(sourceId, revision.Id))
                 {
                     logger.Debug("Found known revision {revisionName} for source code repository {sourceId}, skipping", revision.Name, sourceId);
@@ -226,7 +226,7 @@ namespace CodeSniffer.Sniffer
                 foreach (var definitionId in definitions)
                 {
                     var result = await jobRunner.Execute(definitionId, workingCopyPath);
-                    var report = new CsScanReport(definitionId, sourceId, revision.Id, revision.Name, result.Checks
+                    var report = new CsScanReport(definitionId, sourceId, revision.Id, revision.Name, revision.Branch, result.Checks
                         .Select(c => new CsScanReportCheck(c.PluginId, c.Name, c.Report))
                         .ToList());
 
@@ -321,15 +321,17 @@ namespace CodeSniffer.Sniffer
             public string SourceId { get; }
             public string RevisionId { get; }
             public string RevisionName { get; }
+            public string Branch { get; }
             public IReadOnlyList<ICsScanReportCheck> Checks { get; }
 
 
-            public CsScanReport(string definitionId, string sourceId, string revisionId, string revisionName, IReadOnlyList<ICsScanReportCheck> checks)
+            public CsScanReport(string definitionId, string sourceId, string revisionId, string revisionName, string branch, IReadOnlyList<ICsScanReportCheck> checks)
             {
                 DefinitionId = definitionId;
                 SourceId = sourceId;
                 RevisionId = revisionId;
                 RevisionName = revisionName;
+                Branch = branch;
                 Checks = checks;
             }
         }
