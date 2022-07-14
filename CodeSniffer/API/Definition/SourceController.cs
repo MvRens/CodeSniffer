@@ -95,6 +95,8 @@ namespace CodeSniffer.API.Definition
         [Authorize(Policy = CsPolicyNames.Developers)]
         public async ValueTask<ActionResult> Delete(string id)
         {
+            // TODO check if linked to a group
+            
             try
             {
                 await configurationFacade.RemoveSource(id, Request.Author());
@@ -171,6 +173,8 @@ namespace CodeSniffer.API.Definition
         [Authorize(Policy = CsPolicyNames.Developers)]
         public async ValueTask<ActionResult> DeleteGroup(string id)
         {
+            // TODO check if linked to a definition
+
             try
             {
                 await configurationFacade.RemoveSourceGroup(id, Request.Author());
