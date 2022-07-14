@@ -42,18 +42,18 @@ import { useI18n } from 'vue-i18n';
 const loginStore = useLogin();
 const { t } = useI18n();
 
-const username = ref(null as string | null);
-const password = ref(null as string | null);
-const message = ref(null as string | null);
-let messageTimer = null as number | null;
+const username = ref<string>();
+const password = ref<string>();
+const message = ref<string>();
+let messageTimer = undefined as number | undefined;
 
 
 onUnmounted(() =>
 {
-  if (messageTimer !== null)
+  if (messageTimer !== undefined)
   {
     clearTimeout(messageTimer);
-    messageTimer = null;
+    messageTimer = undefined;
   }
 });
 
@@ -61,15 +61,15 @@ onUnmounted(() =>
 function showMessage(key: string)
 {
   message.value = t(key);
-  if (messageTimer !== null)
+  if (messageTimer !== undefined)
     clearTimeout(messageTimer);
 
   messageTimer = setTimeout(() =>
   {
-    message.value = null;
+    message.value = undefined;
 
     clearTimeout(messageTimer!);
-    messageTimer = null;
+    messageTimer = undefined;
   }, 5000);
 }
 

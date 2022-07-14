@@ -34,7 +34,7 @@ namespace CodeSniffer.API.Definition
         }
 
 
-        [HttpGet("/groups")]
+        [HttpGet("groups")]
         [Authorize(Policy = CsPolicyNames.Developers)]
         public async ValueTask<IEnumerable<ListSourceGroupViewModel>> ListGroups()
         {

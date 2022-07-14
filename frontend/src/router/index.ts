@@ -5,6 +5,7 @@ import Home from '../views/Home.vue';
 import Login from '../views/Login.vue';
 import Logout from '../views/Logout.vue';
 import Definition from '../views/Definition.vue';
+import SourceGroup from '../views/SourceGroup.vue';
 import Users from '../views/Users.vue';
 
 const routes: Array<RouteRecordRaw> = [
@@ -39,6 +40,18 @@ const routes: Array<RouteRecordRaw> = [
     path: '/definitions/edit/:id',
     name: 'EditDefinition',
     component: Definition,
+    props: true
+  },
+
+  {
+    path: '/sourcegroup/create',
+    name: 'CreateSourceGroup',
+    component: SourceGroup
+  },
+  {
+    path: '/sourcegroup/edit/:id',
+    name: 'EditSourceGroup',
+    component: SourceGroup,
     props: true
   },
 

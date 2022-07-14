@@ -130,6 +130,20 @@ namespace CodeSniffer.Repository.LiteDB.Reports
 
 
             [BsonCtor]
+            public ReportRecord(ObjectId id, ObjectId definitionId, ObjectId sourceId, string revisionId, string revisionName, string branch, DateTime timestamp, CsReportResult result, BsonArray checks)
+            {
+                Id = id;
+                DefinitionId = definitionId;
+                SourceId = sourceId;
+                RevisionId = revisionId;
+                RevisionName = revisionName;
+                Branch = branch;
+                Timestamp = timestamp;
+                Result = result;
+                Checks = checks.ToArray<ReportCheckRecord>();
+            }
+
+
             public ReportRecord(ObjectId id, ObjectId definitionId, ObjectId sourceId, string revisionId, string revisionName, string branch, DateTime timestamp, CsReportResult result, ReportCheckRecord[] checks)
             {
                 Id = id;
@@ -154,6 +168,14 @@ namespace CodeSniffer.Repository.LiteDB.Reports
 
 
             [BsonCtor]
+            public ReportCheckRecord(CsReportResult result, BsonDocument? configuration, BsonArray assets)
+            {
+                Result = result;
+                Configuration = configuration?.ToObject<IDictionary<string, string>>();
+                Assets = assets.ToArray<ReportAssetRecord>();
+            }
+
+
             public ReportCheckRecord(CsReportResult result, IDictionary<string, string>? configuration, ReportAssetRecord[] assets)
             {
                 Result = result;
@@ -174,6 +196,16 @@ namespace CodeSniffer.Repository.LiteDB.Reports
 
 
             [BsonCtor]
+            public ReportAssetRecord(string name, CsReportResult result, string? summary, BsonDocument? properties, string? output)
+            {
+                Name = name;
+                Result = result;
+                Summary = summary;
+                Properties = properties?.ToObject<IDictionary<string, string>>();
+                Output = output;
+            }
+
+
             public ReportAssetRecord(string name, CsReportResult result, string? summary, IDictionary<string, string>? properties, string? output)
             {
                 Name = name;

@@ -15,52 +15,16 @@
       <div class="properties">
         <label for="name">{{ t('name') }}</label>
         <input class="u-full-width" type="text" id="name" v-model="name" :class="{ required: !name }" />
+
+        <label for="sourceGroup">{{ t('sourceGroup') }}</label>
+        <select class="u-full-width" id="sourceGroup" :class="{ required: !sourceGroupId }" v-model="sourceGroupId">
+          <option disabled :value="undefined">{{ t('sourceGroupSelect') }}</option>
+          <option v-for="option in sourceGroups" :key="option.id" :value="option.id">{{ option.name }}</option>
+        </select>
       </div>
     </form>
 
     <template v-if="!loading">
-      <h5 class="section">{{ t('sources') }}</h5>
-      <div class="sources">
-        <div v-if="sources.length === 0">
-          {{ t('nosources' )}}
-        </div>
-
-        <template v-for="(source, i) in sources" :key="i">
-          <div v-if="editingSource === i" class="source editing">
-            <form @submit.prevent="closeSource">
-              <label for="sourceName">{{ t('sourceName') }}</label>
-              <input class="u-full-width" type="text" id="sourceName" v-model="source.name" :class="{ required: !source.name }" />
-
-              <label for="sourcePlugin">{{ t('pluginName') }}</label>
-              <select class="u-full-width" id="sourcePlugin" :class="{ required: !source.pluginId }" v-model="source.pluginId">
-                <option disabled :value="null">{{ t('pluginSelect') }}</option>
-                <option v-for="option in sourcePluginOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-              </select>
-
-              <label for="sourceConfiguration">{{ t('configuration') }}</label>
-              <textarea class="u-full-width configuration" type="text" id="sourceConfiguration" v-model="source.configuration" />
-
-              <div v-if="!!sourceOptionsHelp" v-html="sourceOptionsHelp" class="help"></div>
-
-              <input type="submit" class="button button-primary" :value="t('toolbar.close')" />
-            </form>
-          </div>
-
-          <template v-else>
-            <div class="name">{{ source.name || t('noname') }}</div>
-            <div class="plugin">{{ getOptionsLabel(sourcePluginOptions, source.pluginId) }}</div>
-            <div class="buttons">
-              <button @click="editSource(i)" class="button">{{ t('edit') }}</button>
-              <button @click="deleteSource(i)" class="button">{{ t('delete') }}</button>
-            </div>
-          </template>
-        </template>
-
-        <div class="toolbar">
-          <button @click="addSource" class="button button-primary">{{ t('toolbar.addsource') }}</button>
-        </div>
-      </div>
-
       <h5 class="section">{{ t('checks') }}</h5>
       <div class="checks">
         <div v-if="checks.length === 0">
@@ -75,7 +39,7 @@
 
               <label for="checkPlugin">{{ t('pluginName') }}</label>            
               <select class="u-full-width" id="checkPlugin" :class="{ required: !check.pluginId }" v-model="check.pluginId">
-                <option disabled :value="null">{{ t('pluginSelect') }}</option>
+                <option disabled :value="undefined">{{ t('pluginSelect') }}</option>
                 <option v-for="option in checkPluginOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
               </select>
 
@@ -111,6 +75,7 @@ en:
   title:
     create: "Create definition"
     edit: "Edit definition: {originalName}"
+
   loading: "Loading..."
   toolbar:
     submit: "Save"
@@ -118,10 +83,10 @@ en:
     addsource: "Add source"
     addcheck: "Add check"
     close: "Close"
+
   name: "Name"
-  sources: "Sources"
-  nosources: "No sources added yet."
-  sourceName: "Name"
+  sourceGroup: "Source group"
+  sourceGroupSelect: "<no source group selected>"
   checks: "Checks"
   nochecks: "No checks added yet."
   checkName: "Name"
@@ -144,7 +109,8 @@ import { ref, watchEffect, onMounted, reactive, computed } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import { useNotifications } from '@/lib/notifications';
-import { DefinitionCheckViewModel, DefinitionSourceViewModel, DefinitionViewModel, PluginsViewModel, PluginViewModel } from '@/models/definitions';
+import { DefinitionCheckAPIModel, DefinitionAPIModel, PluginsAPIModel, PluginAPIModel } from '@/model/definition';
+import { ListSourceAPIModel, ListSourceGroupAPIModel } from '@/model/source';
 import router from '@/router';
 
 
@@ -155,6 +121,15 @@ interface PluginSelectOption
   defaultOptions?: string;
   optionsHelp?: string;
 }
+
+
+interface DefinitionCheckViewModel
+{
+  name?: string;
+  pluginId?: string;
+  configuration?: string;
+}
+
 
 
 const props = defineProps({
@@ -170,12 +145,13 @@ const saving = ref(false);
 
 const originalName = ref<string>();
 const name = ref<string>();
-const sources = reactive([] as Array<DefinitionSourceViewModel>)
+const sourceGroupId = ref<string>();
 const checks = reactive([] as Array<DefinitionCheckViewModel>)
 
 const editingSource = ref<number>();
 const editingCheck = ref<number>();
 
+const sourceGroups = reactive([] as Array<ListSourceGroupAPIModel>);
 const sourcePluginOptions = reactive([] as Array<PluginSelectOption>);
 const checkPluginOptions = reactive([] as Array<PluginSelectOption>);
 
@@ -183,10 +159,11 @@ onMounted(async () =>
 {
   try
   {
+    await loadPlugins();
+    await loadSourceGroups();
+
     if (!!props.id)
       await loadDefinition(props.id);
-
-    await loadPlugins();
 
     loading.value = false;
   }
@@ -199,12 +176,12 @@ onMounted(async () =>
 
 async function loadDefinition(id: string)
 {
-  const response = await axios.get<DefinitionViewModel>(`/api/definitions/${encodeURIComponent(id)}`);
+  const response = await axios.get<DefinitionAPIModel>(`/api/definitions/${encodeURIComponent(id)}`);
 
   name.value = response.data.name;
   originalName.value = name.value;
+  sourceGroupId.value = response.data.sourceGroupId;
 
-  Object.assign(sources, response.data.sources);
   Object.assign(checks, response.data.checks);
 }
 
@@ -214,10 +191,19 @@ async function saveDefinition()
   // TODO validate input
 
 
-  const definition: DefinitionViewModel = {
-    name: name.value,
-    sources,
-    checks
+  const definition: DefinitionAPIModel = {
+    name: name.value!,
+    sourceGroupId: sourceGroupId.value!,
+    checks: checks.map(c => 
+    {
+      const check: DefinitionCheckAPIModel = {
+        name: c.name!,
+        pluginId: c.pluginId!,
+        configuration: c.configuration
+      };
+
+      return check;
+    })
   };
 
   try
@@ -238,10 +224,10 @@ async function saveDefinition()
 
 async function loadPlugins()
 {
-  const response = await axios.get<PluginsViewModel>('/api/definitions/plugins');
+  const response = await axios.get<PluginsAPIModel>('/api/definitions/plugins');
 
 
-  const convertViewModel = (plugin: PluginViewModel): PluginSelectOption =>
+  const convertViewModel = (plugin: PluginAPIModel): PluginSelectOption =>
   {
     return {
       label: plugin.name,
@@ -253,6 +239,14 @@ async function loadPlugins()
 
   Object.assign(sourcePluginOptions, response.data.sourcePlugins.map(convertViewModel));
   Object.assign(checkPluginOptions, response.data.checkPlugins.map(convertViewModel));
+}
+
+
+async function loadSourceGroups()
+{
+  const response = await axios.get<ListSourceGroupAPIModel[]>('/api/source/groups');
+
+  Object.assign(sourceGroups, response.data);
 }
 
 
@@ -268,51 +262,7 @@ function getOptionsLabel(options: Array<PluginSelectOption>, value?: string)
   return t('noplugin');
 }
 
-function addSource()
-{
-  editingSource.value = sources.push(watchSource({})) - 1;
-}
 
-function editSource(index: number)
-{
-  editingSource.value = index;
-}
-
-function deleteSource(index: number)
-{
-  if (index === editingSource.value)
-    editingSource.value = undefined;
-
-  if (index < 0 || index >= sources.length)
-    return;
-
-  sources.splice(index, 1);
-}
-
-function closeSource()
-{
-  editingSource.value = undefined;
-}
-
-function watchSource(source: DefinitionSourceViewModel): DefinitionSourceViewModel
-{
-  const reactiveSource = reactive(source);
-  let lastPluginId = reactiveSource.pluginId;
-
-  watchEffect(() => 
-  {
-    if (reactiveSource.pluginId !== null && reactiveSource.pluginId !== lastPluginId)
-    {
-      lastPluginId = reactiveSource.pluginId;
-
-      const option = sourcePluginOptions.find(o => o.value === reactiveSource.pluginId);
-      if (!!option)
-        reactiveSource.configuration = option.defaultOptions; 
-    }
-  });
-
-  return reactiveSource;
-}
 
 function addCheck()
 {
@@ -347,7 +297,7 @@ function watchCheck(check: DefinitionCheckViewModel): DefinitionCheckViewModel
 
   watchEffect(() => 
   {
-    if (reactiveCheck.pluginId !== null && reactiveCheck.pluginId !== lastPluginId)
+    if (reactiveCheck.pluginId !== undefined && reactiveCheck.pluginId !== lastPluginId)
     {
       lastPluginId = reactiveCheck.pluginId;
 
@@ -359,20 +309,6 @@ function watchCheck(check: DefinitionCheckViewModel): DefinitionCheckViewModel
 
   return reactiveCheck;
 }
-
-
-const sourceOptionsHelp = computed<string | undefined>(() =>
-{
-  if (editingSource.value === undefined)
-    return undefined;
-
-  const source = sources[editingSource.value];
-  if (source.pluginId === null)
-    return undefined;
-
-  const plugin = sourcePluginOptions.find(p => p.value === source.pluginId);
-  return plugin?.optionsHelp;
-});
 
 
 const checkOptionsHelp = computed<string | undefined>(() =>

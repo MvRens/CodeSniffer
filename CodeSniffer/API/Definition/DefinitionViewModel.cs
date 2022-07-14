@@ -29,17 +29,6 @@ namespace CodeSniffer.API.Definition
     }
 
 
-    public class DefinitionSourceViewModel
-    {
-        [Required(AllowEmptyStrings = false)]
-        public string? Name { get; set; }
-
-        [Required]
-        public Guid? PluginId { get; set; }
-        
-        public string? Configuration { get; set; }
-    }
-
 
     public class DefinitionCheckViewModel
     {

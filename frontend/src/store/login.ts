@@ -2,7 +2,7 @@ import { Ref, ref } from 'vue';
 import Cookies from 'js-cookie';
 import * as jose from 'jose'
 
-const bearerToken = ref<string | null>(null);
+const bearerToken = ref<string>();
 
 const cookieName = 'CodeSniffer.Token';
 const cookie = Cookies.get(cookieName);
@@ -32,13 +32,13 @@ export interface Login
 
   isAdmin(): boolean;
 
-  bearerToken: Ref<string | null>;
+  bearerToken: Ref<string | undefined>;
 }
 
 
 function loggedIn(): boolean
 {
-  return bearerToken.value !== null;
+  return bearerToken.value !== undefined;
 }
 
 
@@ -51,15 +51,15 @@ function login(token: string)
 
 function logout()
 {
-  bearerToken.value = null;
+  bearerToken.value = undefined;
   Cookies.remove(cookieName);
 }
 
 
-function decodePayload(): jose.JWTPayload | null
+function decodePayload(): jose.JWTPayload | undefined
 {
   if (!loggedIn())
-    return null;
+    return undefined;
 
   return jose.decodeJwt(bearerToken.value!);
 }
@@ -68,7 +68,7 @@ function decodePayload(): jose.JWTPayload | null
 function isAdmin(): boolean
 {
   const payload = decodePayload();
-  if (payload === null)
+  if (payload === undefined)
     return false;
 
   const role = (payload as any).role;
