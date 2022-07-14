@@ -21,13 +21,6 @@ export interface DefinitionCheckAPIModel
 }
 
 
-export interface PluginsAPIModel
-{
-  sourcePlugins: PluginAPIModel[];
-  checkPlugins: PluginAPIModel[];
-}
-
-
 export interface PluginAPIModel
 {
   id: string;

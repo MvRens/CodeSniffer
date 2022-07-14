@@ -1,8 +1,13 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using CodeSniffer.Auth;
+using CodeSniffer.Core.Plugin;
+using CodeSniffer.Core.Source;
 using CodeSniffer.Facade;
+using CodeSniffer.Plugins;
 using CodeSniffer.Repository.Source;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,12 +19,14 @@ namespace CodeSniffer.API.Definition
     {
         private readonly IConfigurationFacade configurationFacade;
         private readonly ISourceRepository sourceRepository;
+        private readonly IPluginManager pluginManager;
 
 
-        public SourceController(IConfigurationFacade configurationFacade, ISourceRepository sourceRepository)
+        public SourceController(IConfigurationFacade configurationFacade, ISourceRepository sourceRepository, IPluginManager pluginManager)
         {
             this.configurationFacade = configurationFacade;
             this.sourceRepository = sourceRepository;
+            this.pluginManager = pluginManager;
         }
 
 
@@ -27,92 +34,26 @@ namespace CodeSniffer.API.Definition
         [Authorize(Policy = CsPolicyNames.Developers)]
         public async ValueTask<IEnumerable<ListSourceViewModel>> List()
         {
-            var definitions = await sourceRepository.ListSources();
-            var viewModels = definitions.Select(d => new ListSourceViewModel(d.Id, d.Name));
+            var sources = await sourceRepository.ListSources();
+            var viewModels = sources.Select(d => new ListSourceViewModel(d.Id, d.Name));
 
             return viewModels;
-        }
-
-
-        [HttpGet("groups")]
-        [Authorize(Policy = CsPolicyNames.Developers)]
-        public async ValueTask<IEnumerable<ListSourceGroupViewModel>> ListGroups()
-        {
-            var definitions = await sourceRepository.ListSourceGroups();
-            var viewModels = definitions.Select(d => new ListSourceGroupViewModel(d.Id, d.Name));
-
-            return viewModels;
-        }
-
-
-        /*
-        [HttpGet("plugins")]
-        [Authorize(Policy = CsPolicyNames.Developers)]
-        public PluginsViewModel Plugins()
-        {
-            var sourcePlugins = new List<PluginViewModel>();
-            var checkPlugins = new List<PluginViewModel>();
-
-            
-            // Move to a helper method when needed in another controller method
-            var cultures = Request.GetTypedHeaders().AcceptLanguage
-                .OrderByDescending(l => l.Quality ?? 1)
-                .Select(l =>
-                {
-                    try
-                    {
-                        return CultureInfo.GetCultureInfo(l.Value.ToString());
-                    }
-                    catch (CultureNotFoundException)
-                    {
-                        return null;
-                    }
-                })
-                .Where(l => l != null)
-                .Cast<CultureInfo>()
-                .Distinct()
-                .ToList();
-
-
-            foreach (var pluginInfo in pluginManager)
-            {
-                var pluginViewModel = new PluginViewModel(pluginInfo.Id, pluginInfo.Plugin.Name,
-                    pluginInfo.Plugin.DefaultOptions?.ToJsonString(DefaultOptionsSerializerOptions),
-                    pluginInfo.Plugin is ICsPluginHelp pluginHelp ? pluginHelp.GetOptionsHelpHtml(cultures) : null);
-
-                // ReSharper disable once ConvertIfStatementToSwitchStatement - not the same! a plugin could implement both.
-                if (pluginInfo.Plugin is ICsSourceCodeRepositoryPlugin)
-                    sourcePlugins.Add(pluginViewModel);
-
-                if (pluginInfo.Plugin is ICsSnifferPlugin)
-                    checkPlugins.Add(pluginViewModel);
-            }
-
-            return new PluginsViewModel(
-                sourcePlugins.ToArray(),
-                checkPlugins.ToArray()
-            );
         }
 
 
         [HttpGet("{id}")]
         [Authorize(Policy = CsPolicyNames.Developers)]
-        public async ValueTask<ActionResult<DefinitionViewModel>> GetDetails(string id)
+        public async ValueTask<ActionResult<SourceViewModel>> GetDetails(string id)
         {
             try
             {
-                var details = await definitionRepository.GetDetails(id);
+                var details = await sourceRepository.GetSourceDetails(id);
 
-                return Ok(new DefinitionViewModel
+                return Ok(new SourceViewModel
                 {
                     Name = details.Name,
-                    SourceGroupId = details.SourceGroupId,
-                    Checks = details.Checks.Select(c => new DefinitionCheckViewModel
-                    {
-                        Name = c.Name,
-                        PluginId = c.PluginId,
-                        Configuration = c.Configuration.ToJsonString()
-                    }).ToArray()
+                    PluginId = details.PluginId.ToString(),
+                    Configuration = details.Configuration.ToDisplayJsonString()
                 });
             }
             catch (InvalidOperationException)
@@ -124,23 +65,23 @@ namespace CodeSniffer.API.Definition
 
         [HttpPost]
         [Authorize(Policy = CsPolicyNames.Developers)]
-        public async ValueTask<ActionResult<string>> InsertDetails([FromBody] DefinitionViewModel viewModel)
+        public async ValueTask<ActionResult<string>> InsertDetails([FromBody] SourceViewModel viewModel)
         {
-            var definition = ViewModelToDefinition(viewModel);
-            var id = await definitionFacade.Insert(definition, GetAuthor());
+            var source = ViewModelToSource(viewModel);
+            var id = await configurationFacade.InsertSource(source, Request.Author());
             return Ok(id);
         }
 
 
         [HttpPut("{id}")]
         [Authorize(Policy = CsPolicyNames.Developers)]
-        public async ValueTask<ActionResult> UpdateDetails(string id, [FromBody] DefinitionViewModel viewModel)
+        public async ValueTask<ActionResult> UpdateDetails(string id, [FromBody] SourceViewModel viewModel)
         {
-            var definition = ViewModelToDefinition(viewModel);
-            
+            var source = ViewModelToSource(viewModel);
+
             try
             {
-                await definitionFacade.Update(id, definition, GetAuthor());
+                await configurationFacade.UpdateSource(id, source, Request.Author());
                 return NoContent();
             }
             catch (InvalidOperationException)
@@ -156,7 +97,7 @@ namespace CodeSniffer.API.Definition
         {
             try
             {
-                await definitionFacade.Remove(id, GetAuthor());
+                await configurationFacade.RemoveSource(id, Request.Author());
                 return NoContent();
             }
             catch (InvalidOperationException)
@@ -166,22 +107,110 @@ namespace CodeSniffer.API.Definition
         }
 
 
-        private string GetAuthor()
+        [HttpGet("groups")]
+        [Authorize(Policy = CsPolicyNames.Developers)]
+        public async ValueTask<IEnumerable<ListSourceGroupViewModel>> ListGroups()
         {
-            var usernameClaim = Request.HttpContext.User.FindFirst(ClaimTypes.Name);
-            if (usernameClaim == null)
-                throw new UnauthorizedAccessException();
+            var sourceGroups = await sourceRepository.ListSourceGroups();
+            var viewModels = sourceGroups.Select(d => new ListSourceGroupViewModel(d.Id, d.Name));
 
-            return usernameClaim.Value;
+            return viewModels;
         }
 
 
-        private static CsDefinition ViewModelToDefinition(DefinitionViewModel viewModel)
+        [HttpGet("group/{id}")]
+        [Authorize(Policy = CsPolicyNames.Developers)]
+        public async ValueTask<ActionResult<SourceGroupViewModel>> GetGroupDetails(string id)
         {
-            return new CsDefinition(
-                viewModel.Name!, 
-                viewModel.SourceGroupId!,
-                viewModel.Checks?.Select(c => new CsDefinitionCheck(c.Name!, c.PluginId!.Value, ParseConfiguration(c.Configuration))).ToArray() ?? Array.Empty<CsDefinitionCheck>());
+            try
+            {
+                var details = await sourceRepository.GetSourceGroupDetails(id);
+
+                return Ok(new SourceGroupViewModel
+                {
+                    Name = details.Name,
+                    SourceIds = details.SourceIds.ToArray()
+                });
+            }
+            catch (InvalidOperationException)
+            {
+                return NotFound();
+            }
+        }
+
+
+        [HttpPost("group")]
+        [Authorize(Policy = CsPolicyNames.Developers)]
+        public async ValueTask<ActionResult<string>> InsertGroupDetails([FromBody] SourceGroupViewModel viewModel)
+        {
+            var sourceGroup = ViewModelToSourceGroup(viewModel);
+            var id = await configurationFacade.InsertSourceGroup(sourceGroup, Request.Author());
+            return Ok(id);
+        }
+
+
+        [HttpPut("group/{id}")]
+        [Authorize(Policy = CsPolicyNames.Developers)]
+        public async ValueTask<ActionResult> UpdateGroupDetails(string id, [FromBody] SourceGroupViewModel viewModel)
+        {
+            var sourceGroup = ViewModelToSourceGroup(viewModel);
+
+            try
+            {
+                await configurationFacade.UpdateSourceGroup(id, sourceGroup, Request.Author());
+                return NoContent();
+            }
+            catch (InvalidOperationException)
+            {
+                return NotFound();
+            }
+        }
+
+
+        [HttpDelete("group/{id}")]
+        [Authorize(Policy = CsPolicyNames.Developers)]
+        public async ValueTask<ActionResult> DeleteGroup(string id)
+        {
+            try
+            {
+                await configurationFacade.RemoveSourceGroup(id, Request.Author());
+                return NoContent();
+            }
+            catch (InvalidOperationException)
+            {
+                return NotFound();
+            }
+        }
+
+
+        [HttpGet("plugins")]
+        [Authorize(Policy = CsPolicyNames.Developers)]
+        public IEnumerable<PluginViewModel> Plugins()
+        {
+            return pluginManager
+                .ByType<ICsSourceCodeRepositoryPlugin>()
+                .Select(pluginInfo => new PluginViewModel(pluginInfo.Id, pluginInfo.Plugin.Name,
+                    pluginInfo.Plugin.DefaultOptions?.ToDisplayJsonString(),
+                    pluginInfo.Plugin is ICsPluginHelp pluginHelp ? pluginHelp.GetOptionsHelpHtml(Request.Cultures()) : null)
+                )
+                .ToArray();
+        }
+
+
+        private static CsSource ViewModelToSource(SourceViewModel viewModel)
+        {
+            return new CsSource(
+                viewModel.Name!,
+                Guid.Parse(viewModel.PluginId!),
+                ParseConfiguration(viewModel.Configuration));
+        }
+
+
+        private static CsSourceGroup ViewModelToSourceGroup(SourceGroupViewModel viewModel)
+        {
+            return new CsSourceGroup(
+                viewModel.Name!,
+                viewModel.SourceIds!);
         }
 
 
@@ -192,6 +221,5 @@ namespace CodeSniffer.API.Definition
 
             return JsonNode.Parse(configuration) as JsonObject ?? new JsonObject();
         }
-        */
     }
 }

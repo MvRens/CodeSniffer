@@ -4,11 +4,14 @@ namespace CodeSniffer.Repository.Source
 {
     public interface ISourceRepository
     {
-        public ValueTask<IReadOnlyList<ListSource>> ListSources();
-        public ValueTask<IReadOnlyList<ListSourceGroup>> ListSourceGroups();
+        ValueTask<IReadOnlyList<ListSource>> ListSources();
+        ValueTask<IReadOnlyList<ListSourceGroup>> ListSourceGroups();
 
-        public ValueTask<IReadOnlyList<CsStoredSource>> GetAllSources();
-        public ValueTask<IReadOnlyList<CsStoredSourceGroup>> GetAllSourceGroups();
+        ValueTask<IReadOnlyList<CsStoredSource>> GetAllSources();
+        ValueTask<IReadOnlyList<CsStoredSourceGroup>> GetAllSourceGroups();
+
+        ValueTask<CsStoredSource> GetSourceDetails(string id);
+        ValueTask<CsStoredSourceGroup> GetSourceGroupDetails(string id);
 
         ValueTask<string> InsertSource(CsSource newSource, string author);
         ValueTask UpdateSource(string id, CsSource newSource, string author);

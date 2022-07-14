@@ -30,40 +30,28 @@ namespace CodeSniffer.API.Definition
         }
     }
 
-    /*
+
+
+    public class SourceGroupViewModel
+    {
+        [Required(AllowEmptyStrings = false)]
+        public string? Name { get; set; }
+
+        [Required]
+        public string[]? SourceIds { get; set; }
+    }
+
+
+
+
     public class SourceViewModel
     {
         [Required(AllowEmptyStrings = false)]
         public string? Name { get; set; }
 
         [Required(AllowEmptyStrings = false)]
-        public string? SourceGroupId { get; set; }
+        public string? PluginId { get; set; }
 
-        public SourceCheckViewModel[]? Checks { get; set; }
-    }
-
-
-    public class SourceSourceViewModel
-    {
-        [Required(AllowEmptyStrings = false)]
-        public string? Name { get; set; }
-
-        [Required]
-        public Guid? PluginId { get; set; }
-        
         public string? Configuration { get; set; }
     }
-
-
-    public class SourceCheckViewModel
-    {
-        [Required(AllowEmptyStrings = false)]
-        public string? Name { get; set; }
-
-        [Required]
-        public Guid? PluginId { get; set; }
-        
-        public string? Configuration { get; set; }
-    }
-*/
 }

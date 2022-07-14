@@ -2,6 +2,8 @@
   <div v-if="showMenu" class="menu">
     <div class="container">
       <router-link :to="{ name: 'Home' }">{{ t('menu.home') }}</router-link>
+      <router-link :to="{ name: 'Definitions' }">{{ t('menu.definitions') }}</router-link>
+      <router-link :to="{ name: 'Sources' }">{{ t('menu.sources') }}</router-link>
       <router-link :to="{ name: 'Users' }" v-if="isAdmin">{{ t('menu.users') }}</router-link>
       <router-link :to="{ name: 'Logout' }" class="logout">{{ t('menu.logout') }}</router-link>
     </div>
@@ -14,6 +16,8 @@
 en:
   menu:
     home: "Dashboard"
+    definitions: "Scan jobs"
+    sources: "Sources"
     users: "Users"
     logout: "Logout"
 </i18n>
@@ -45,6 +49,7 @@ const isAdmin = computed(() => login.isAdmin());
 @import "skeleton-css/css/skeleton";
 @import "awesome-notifications/dist/style.css";
 
+$menuItemBorder: solid 2px #404040;
 
 .menu
 {
@@ -61,15 +66,28 @@ const isAdmin = computed(() => login.isAdmin());
     display: inline-block;
     color: white;
     padding: .5em;
+    padding-left: 1em;
+    padding-right: 1em;
     text-decoration: none;
+    
+    &:not(:first-child)
+    {
+      border-left: $menuItemBorder;
+    }
 
     &:hover
     {
       background-color: #404040;
     }
 
+    &.router-link-active
+    {
+      background-color: #303030;
+    }
+
     &.logout
     {
+      border-left: none;
       margin-left: auto;
     }
   }
@@ -87,6 +105,13 @@ const isAdmin = computed(() => login.isAdmin());
 .button
 {
   background-color: white;
+
+  &.button-danger
+  {  
+    background-color: rgb(185, 67, 67);
+    color: white;
+    border-color: rgb(167, 39, 39);
+  }
 }
 
 .toolbar
@@ -100,11 +125,81 @@ const isAdmin = computed(() => login.isAdmin());
 .section
 {
   border-bottom: solid 1px #e0e0e0;
+  margin-top: 1em;
+}
+
+
+.suptitle
+{
+  margin-bottom: 0;
 }
 
 
 input.required, input.required:focus, select.required, select.required:focus
 {
   border-color: red;
+}
+
+
+.plugin-help
+{
+  border: solid 1px #c0c0c0;
+  background-color: #f8f8f8;
+
+  padding: .5em;
+  margin-bottom: 1em;
+
+  height: 10em;
+  overflow-y: auto;
+  resize: vertical;
+
+
+  .help-summary
+  {
+    display: block;
+  }
+
+  .help-configuration
+  {
+    display: grid;
+    grid-template-columns: auto 1fr;
+  }
+
+  .help-option
+  {
+    display: contents;
+
+
+    .help-option-key
+    {
+      margin-right: 2em;
+      margin-top: 1em;
+    }
+
+
+    &.required .help-option-key
+    {
+      font-weight: bold;
+
+      &::after
+      {
+        content: " (required)";
+        font-weight: normal;
+      }
+    }
+
+
+    .help-option-summary
+    {
+      grid-column: 2;
+      margin-top: 1em;
+    }
+
+
+    .help-option-description
+    {
+      grid-column: 2;
+    }
+  }
 }
 </style>

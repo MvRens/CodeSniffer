@@ -32,6 +32,7 @@ namespace CodeSniffer.SourceCodeRepository.Git
             return CsPluginHelpBuilder.Create()
                 .SetSummary(getString(nameof(Strings.HelpSummary)))
                 .AddConfiguration(nameof(GitCsSourceCodeRepositoryOptions.Url), getString(nameof(Strings.HelpUrlSummary)), null, true)
+                // TODO username + password
                 .BuildHtml();
         }
     }

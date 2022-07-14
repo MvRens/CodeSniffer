@@ -1,6 +1,7 @@
 <template>
   <div class="container">
-    <h4>{{ !!id ? t('title.edit', { originalName }) : t('title.create') }}</h4>
+    <h6 class="suptitle" v-if="!!props.id">{{ t('title.edit' )}}</h6>
+    <h4>{{ !!id ? originalName : t('title.create') }}</h4>
 
     <div v-if="loading">
       {{ t('loading') }}
@@ -9,7 +10,7 @@
     <form v-else class="definition u-full-width" @submit.prevent="saveDefinition">    
       <div class="toolbar">
         <input type="submit" class="button button-primary" :class="{ disabled: saving }" :value="t('toolbar.submit')" />
-        <router-link :to="{ name: 'Home' }" class="button">{{ t('toolbar.cancel') }}</router-link>
+        <router-link :to="{ name: 'ListDefinitions' }" class="button">{{ t('toolbar.cancel') }}</router-link>
       </div>
 
       <div class="properties">
@@ -46,7 +47,7 @@
               <label for="checkConfiguration">{{ t('configuration') }}</label>
               <textarea class="u-full-width configuration" type="text" id="checkConfiguration" v-model="check.configuration" />
 
-              <div v-if="!!checkOptionsHelp" v-html="checkOptionsHelp" class="help"></div>
+              <div v-if="!!checkOptionsHelp" v-html="checkOptionsHelp" class="plugin-help"></div>
 
               <input type="submit" class="button button-primary" :value="t('toolbar.close')" />
             </form>
@@ -74,13 +75,12 @@
 en:
   title:
     create: "Create definition"
-    edit: "Edit definition: {originalName}"
+    edit: "Edit definition"
 
   loading: "Loading..."
   toolbar:
     submit: "Save"
     cancel: "Cancel"
-    addsource: "Add source"
     addcheck: "Add check"
     close: "Close"
 
@@ -90,9 +90,8 @@ en:
   checks: "Checks"
   nochecks: "No checks added yet."
   checkName: "Name"
-  checkSelect: "Select a check type..."
   pluginName: "Type"
-  pluginSelect: "Select a source type..."
+  pluginSelect: "Select a check type..."
   edit: "Edit"
   delete: "Remove"
   noname: "<unnamed>"
@@ -109,8 +108,8 @@ import { ref, watchEffect, onMounted, reactive, computed } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import { useNotifications } from '@/lib/notifications';
-import { DefinitionCheckAPIModel, DefinitionAPIModel, PluginsAPIModel, PluginAPIModel } from '@/model/definition';
-import { ListSourceAPIModel, ListSourceGroupAPIModel } from '@/model/source';
+import { DefinitionCheckAPIModel, DefinitionAPIModel, PluginAPIModel } from '@/model/definition';
+import { ListSourceGroupAPIModel } from '@/model/source';
 import router from '@/router';
 
 
@@ -148,11 +147,9 @@ const name = ref<string>();
 const sourceGroupId = ref<string>();
 const checks = reactive([] as Array<DefinitionCheckViewModel>)
 
-const editingSource = ref<number>();
 const editingCheck = ref<number>();
 
 const sourceGroups = reactive([] as Array<ListSourceGroupAPIModel>);
-const sourcePluginOptions = reactive([] as Array<PluginSelectOption>);
 const checkPluginOptions = reactive([] as Array<PluginSelectOption>);
 
 onMounted(async () =>
@@ -182,7 +179,16 @@ async function loadDefinition(id: string)
   originalName.value = name.value;
   sourceGroupId.value = response.data.sourceGroupId;
 
-  Object.assign(checks, response.data.checks);
+  Object.assign(checks, response.data.checks.map(c => 
+  {
+    const check: DefinitionCheckViewModel = {
+      name: c.name,
+      pluginId: c.pluginId,
+      configuration: c.configuration
+    };
+
+    return check;
+  }));
 }
 
 
@@ -213,7 +219,7 @@ async function saveDefinition()
       : await axios.post('/api/definitions', definition);
 
     notifications.info(t('notifications.saveSuccess'));
-    router.push({ name: 'Home' });
+    router.push({ name: 'ListDefinitions' });
   }
   catch (e)
   {
@@ -224,7 +230,7 @@ async function saveDefinition()
 
 async function loadPlugins()
 {
-  const response = await axios.get<PluginsAPIModel>('/api/definitions/plugins');
+  const response = await axios.get<PluginAPIModel[]>('/api/definitions/plugins');
 
 
   const convertViewModel = (plugin: PluginAPIModel): PluginSelectOption =>
@@ -237,8 +243,7 @@ async function loadPlugins()
     }
   };
 
-  Object.assign(sourcePluginOptions, response.data.sourcePlugins.map(convertViewModel));
-  Object.assign(checkPluginOptions, response.data.checkPlugins.map(convertViewModel));
+  Object.assign(checkPluginOptions, response.data.map(convertViewModel));
 }
 
 
@@ -371,73 +376,5 @@ const checkOptionsHelp = computed<string | undefined>(() =>
   height: 20em;
   resize: vertical;
   font-family: 'Courier New', Courier, monospace;
-}
-
-
-.help
-{
-  border: solid 1px #c0c0c0;
-  background-color: #f0f0f0;
-
-  padding: .5em;
-  margin-bottom: 1em;
-
-  height: 10em;
-  overflow-y: auto;
-  resize: vertical;
-
-
-  // The generated HTML help from the plugin does not contain the scope
-  // specifiers, so v-deep is required to indicate they should match
-  :deep()
-  {
-    .help-summary
-    {
-      display: block;
-    }
-
-    .help-configuration
-    {
-      display: grid;
-      grid-template-columns: auto 1fr;
-    }
-
-    .help-option
-    {
-      display: contents;
-
-
-      .help-option-key
-      {
-        margin-right: 2em;
-        margin-top: 1em;
-      }
-
-
-      &.required .help-option-key
-      {
-        font-weight: bold;
-
-        &::after
-        {
-          content: " (required)";
-          font-weight: normal;
-        }
-      }
-
-
-      .help-option-summary
-      {
-        grid-column: 2;
-        margin-top: 1em;
-      }
-
-
-      .help-option-description
-      {
-        grid-column: 2;
-      }
-    }
-  }
 }
 </style>

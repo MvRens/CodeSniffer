@@ -1,21 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
-using System.Security.Claims;
-using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using CodeSniffer.Auth;
 using CodeSniffer.Core.Plugin;
 using CodeSniffer.Core.Sniffer;
-using CodeSniffer.Core.Source;
 using CodeSniffer.Facade;
 using CodeSniffer.Plugins;
 using CodeSniffer.Repository.Checks;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CodeSniffer.API.Definition
@@ -26,12 +20,6 @@ namespace CodeSniffer.API.Definition
         private readonly IConfigurationFacade configurationFacade;
         private readonly IDefinitionRepository definitionRepository;
         private readonly IPluginManager pluginManager;
-
-        private static readonly JsonSerializerOptions DefaultOptionsSerializerOptions = new()
-        {
-            DefaultIgnoreCondition = JsonIgnoreCondition.Never,
-            WriteIndented = true
-        };
 
 
         public DefinitionController(IConfigurationFacade configurationFacade, IDefinitionRepository definitionRepository, IPluginManager pluginManager)
@@ -55,50 +43,15 @@ namespace CodeSniffer.API.Definition
 
         [HttpGet("plugins")]
         [Authorize(Policy = CsPolicyNames.Developers)]
-        public PluginsViewModel Plugins()
+        public IEnumerable<PluginViewModel> Plugins()
         {
-            var sourcePlugins = new List<PluginViewModel>();
-            var checkPlugins = new List<PluginViewModel>();
-
-            
-            // Move to a helper method when needed in another controller method
-            var cultures = Request.GetTypedHeaders().AcceptLanguage
-                .OrderByDescending(l => l.Quality ?? 1)
-                .Select(l =>
-                {
-                    try
-                    {
-                        return CultureInfo.GetCultureInfo(l.Value.ToString());
-                    }
-                    catch (CultureNotFoundException)
-                    {
-                        return null;
-                    }
-                })
-                .Where(l => l != null)
-                .Cast<CultureInfo>()
-                .Distinct()
-                .ToList();
-
-
-            foreach (var pluginInfo in pluginManager)
-            {
-                var pluginViewModel = new PluginViewModel(pluginInfo.Id, pluginInfo.Plugin.Name,
-                    pluginInfo.Plugin.DefaultOptions?.ToJsonString(DefaultOptionsSerializerOptions),
-                    pluginInfo.Plugin is ICsPluginHelp pluginHelp ? pluginHelp.GetOptionsHelpHtml(cultures) : null);
-
-                // ReSharper disable once ConvertIfStatementToSwitchStatement - not the same! a plugin could implement both.
-                if (pluginInfo.Plugin is ICsSourceCodeRepositoryPlugin)
-                    sourcePlugins.Add(pluginViewModel);
-
-                if (pluginInfo.Plugin is ICsSnifferPlugin)
-                    checkPlugins.Add(pluginViewModel);
-            }
-
-            return new PluginsViewModel(
-                sourcePlugins.ToArray(),
-                checkPlugins.ToArray()
-            );
+            return pluginManager
+                .ByType<ICsSnifferPlugin>()
+                .Select(pluginInfo => new PluginViewModel(pluginInfo.Id, pluginInfo.Plugin.Name,
+                    pluginInfo.Plugin.DefaultOptions?.ToDisplayJsonString(),
+                    pluginInfo.Plugin is ICsPluginHelp pluginHelp ? pluginHelp.GetOptionsHelpHtml(Request.Cultures()) : null)
+                )
+                .ToArray();
         }
 
 
@@ -118,7 +71,7 @@ namespace CodeSniffer.API.Definition
                     {
                         Name = c.Name,
                         PluginId = c.PluginId,
-                        Configuration = c.Configuration.ToJsonString()
+                        Configuration = c.Configuration.ToDisplayJsonString()
                     }).ToArray()
                 });
             }
@@ -134,7 +87,7 @@ namespace CodeSniffer.API.Definition
         public async ValueTask<ActionResult<string>> InsertDetails([FromBody] DefinitionViewModel viewModel)
         {
             var definition = ViewModelToDefinition(viewModel);
-            var id = await configurationFacade.InsertDefinition(definition, GetAuthor());
+            var id = await configurationFacade.InsertDefinition(definition, Request.Author());
             return Ok(id);
         }
 
@@ -147,7 +100,7 @@ namespace CodeSniffer.API.Definition
             
             try
             {
-                await configurationFacade.UpdateDefinition(id, definition, GetAuthor());
+                await configurationFacade.UpdateDefinition(id, definition, Request.Author());
                 return NoContent();
             }
             catch (InvalidOperationException)
@@ -163,7 +116,7 @@ namespace CodeSniffer.API.Definition
         {
             try
             {
-                await configurationFacade.RemoveDefinition(id, GetAuthor());
+                await configurationFacade.RemoveDefinition(id, Request.Author());
                 return NoContent();
             }
             catch (InvalidOperationException)
@@ -172,15 +125,6 @@ namespace CodeSniffer.API.Definition
             }
         }
 
-
-        private string GetAuthor()
-        {
-            var usernameClaim = Request.HttpContext.User.FindFirst(ClaimTypes.Name);
-            if (usernameClaim == null)
-                throw new UnauthorizedAccessException();
-
-            return usernameClaim.Value;
-        }
 
 
         private static CsDefinition ViewModelToDefinition(DefinitionViewModel viewModel)

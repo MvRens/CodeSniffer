@@ -80,6 +80,36 @@ namespace CodeSniffer.Repository.LiteDB.Source
         }
 
 
+        public async ValueTask<CsStoredSource> GetSourceDetails(string id)
+        {
+            var recordId = new ObjectId(id);
+
+            using var connection = await GetConnection();
+            var collection = connection.Database.GetCollection<SourceRecord>(SourceCollection);
+
+            var record = collection.FindById(recordId);
+            if (record == null)
+                throw new InvalidOperationException($"Unknown source Id: {id}");
+
+            return MapSource(record);
+        }
+
+
+        public async ValueTask<CsStoredSourceGroup> GetSourceGroupDetails(string id)
+        {
+            var recordId = new ObjectId(id);
+
+            using var connection = await GetConnection();
+            var collection = connection.Database.GetCollection<SourceGroupRecord>(SourceGroupCollection);
+
+            var record = collection.FindById(recordId);
+            if (record == null)
+                throw new InvalidOperationException($"Unknown source group Id: {id}");
+
+            return MapSourceGroup(record);
+        }
+
+
         public async ValueTask<string> InsertSource(CsSource newSource, string author)
         {
             using var connection = await GetConnection();

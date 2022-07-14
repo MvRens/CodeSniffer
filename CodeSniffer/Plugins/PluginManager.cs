@@ -164,7 +164,7 @@ namespace CodeSniffer.Plugins
 
         public IEnumerator<ICsPluginInfo> GetEnumerator()
         {
-            return loadedPlugins.Values.Select(p => p.Plugin).GetEnumerator();
+            return loadedPlugins.Values.Select(p => p.Info).GetEnumerator();
         }
 
 
@@ -177,17 +177,17 @@ namespace CodeSniffer.Plugins
         public ICsPluginInfo? ById(Guid id)
         {
             return loadedPlugins.TryGetValue(id, out var loadedPlugin)
-                ? loadedPlugin.Plugin
+                ? loadedPlugin.Info
                 : null;
         }
 
 
-        public IEnumerable<T> ByType<T>() where T : ICsPluginInfo
+        public IEnumerable<ICsPluginInfo> ByType<T>() where T : ICsPlugin
         {
             return loadedPlugins.Values
-                .Where(p => p.Plugin.GetType().IsAssignableTo(typeof(T)))
-                .Select(p => p.Plugin)
-                .Cast<T>();
+                .Where(p => p.Info.Plugin.GetType().IsAssignableTo(typeof(T)))
+                .Select(p => p.Info)
+                .ToList();
         }
 
 
@@ -201,13 +201,13 @@ namespace CodeSniffer.Plugins
         private readonly struct LoadedPlugin
         {
             private readonly PluginLoadContext loadContext;
-            public ICsPluginInfo Plugin { get; }
+            public ICsPluginInfo Info { get; }
 
 
-            public LoadedPlugin(PluginLoadContext loadContext, ICsPluginInfo plugin)
+            public LoadedPlugin(PluginLoadContext loadContext, ICsPluginInfo info)
             {
                 this.loadContext = loadContext;
-                Plugin = plugin;
+                Info = info;
             }
 
             public void Unload()
