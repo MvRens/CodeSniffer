@@ -453,7 +453,7 @@ const checkOptionsHelp = computed<string | undefined>(() =>
 
   // The generated HTML help from the plugin does not contain the scope
   // specifiers, so v-deep is required to indicate they should match
-  &::v-deep
+  :deep()
   {
     .help-summary
     {
