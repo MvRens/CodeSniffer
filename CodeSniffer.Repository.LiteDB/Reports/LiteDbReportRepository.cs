@@ -8,7 +8,7 @@ namespace CodeSniffer.Repository.LiteDB.Reports
     public class LiteDbReportRepository : BaseLiteDbRepository, IReportRepository
     {
         private const string ReportCollection = "Report";
-        //private const string ReportArchiveCollection = "ReportArchive";
+        private const string ReportArchiveCollection = "ReportArchive";
 
 
         public LiteDbReportRepository(ILiteDbConnectionPool connectionPool, ILiteDbConnectionString connectionString)
@@ -22,8 +22,8 @@ namespace CodeSniffer.Repository.LiteDB.Reports
             var reportCollection = database.GetCollection<ReportRecord>(ReportCollection);
             reportCollection.EnsureIndex(r => r.DefinitionId);
 
-            //var reportArchiveCollection = database.GetCollection<ReportRecord>(ReportArchiveCollection);
-            //reportArchiveCollection.EnsureIndex(r => r.DefinitionId);
+            var reportArchiveCollection = database.GetCollection<ArchivedReportRecord>(ReportArchiveCollection);
+            reportArchiveCollection.EnsureIndex(r => r.DefinitionId);
 
             return default;
         }
@@ -33,7 +33,38 @@ namespace CodeSniffer.Repository.LiteDB.Reports
         {
             using var connection = await GetConnection();
             var reportCollection = connection.Database.GetCollection<ReportRecord>(ReportCollection);
+            var reportArchiveCollection = connection.Database.GetCollection<ArchivedReportRecord>(ReportArchiveCollection);
 
+            var definitionId = new ObjectId(report.DefinitionId);
+            var sourceId = new ObjectId(report.SourceId);
+
+
+            // Archive previous reports for the same combination of definition, source and branch
+            foreach (var priorReport in reportCollection
+                         .Find(r =>
+                             r.DefinitionId == definitionId && 
+                             r.SourceId == sourceId && 
+                             r.Branch == report.Branch)
+                         .ToList())
+            {
+                var archivedRecord = new ArchivedReportRecord(
+                    ObjectId.NewObjectId(),
+                    priorReport.Id,
+                    priorReport.DefinitionId,
+                    priorReport.SourceId,
+                    priorReport.RevisionId,
+                    priorReport.RevisionName,
+                    priorReport.Branch,
+                    priorReport.Timestamp,
+                    priorReport.Result,
+                    priorReport.Checks);
+
+                reportArchiveCollection.Insert(archivedRecord);
+                reportCollection.Delete(priorReport.Id);
+            }
+
+
+            // Store new report
             var reportId = ObjectId.NewObjectId();
             var timestamp = DateTime.UtcNow;
             var reportResult = CsReportResult.Success;
@@ -44,6 +75,7 @@ namespace CodeSniffer.Repository.LiteDB.Reports
                 {
                     var assets = c.Report.Assets
                         .Select(a => new ReportAssetRecord(
+                            a.Id,
                             a.Name,
                             a.Result,
                             a.Summary,
@@ -57,6 +89,8 @@ namespace CodeSniffer.Repository.LiteDB.Reports
                         reportResult = result;
 
                     return new ReportCheckRecord(
+                        c.PluginId,
+                        c.Name,
                         result,
                         c.Report.Configuration?.ToDictionary(p => p.Key, p => p.Value),
                         assets);
@@ -67,8 +101,8 @@ namespace CodeSniffer.Repository.LiteDB.Reports
 
             var record = new ReportRecord(
                 reportId,
-                new ObjectId(report.DefinitionId),
-                new ObjectId(report.SourceId),
+                definitionId,
+                sourceId,
                 report.RevisionId,
                 report.RevisionName,
                 report.Branch,
@@ -78,38 +112,43 @@ namespace CodeSniffer.Repository.LiteDB.Reports
             );
 
             reportCollection.Insert(record);
+
+
             return reportId.ToString();
         }
 
 
-        public async ValueTask<IReadOnlyDictionary<string, CsReportResult>> GetDefinitionsStatus()
+        public async ValueTask<IReadOnlyList<ICsScanReport>> GetActiveReports()
         {
             using var connection = await GetConnection();
             var collection = connection.Database.GetCollection<ReportRecord>(ReportCollection);
 
             return collection.FindAll()
-                .GroupBy(r => r.DefinitionId)
-                .Select(group =>
-                {
-                    CsReportResult? result = null;
-
-                    foreach (var report in group)
-                    {
-                        if (result == null || report.Result > result)
-                            result = report.Result;
-                    }
-
-
-                    return result == null
-                        ? null
-                        : new
-                        {
-                            DefinitionId = group.Key.ToString(),
-                            Result = result.Value
-                        };
-                })
-                .Where(r => r != null)
-                .ToDictionary(r => r!.DefinitionId, r => r!.Result);
+                .Select(r => new StoredScanReport(
+                    r.DefinitionId.ToString(),
+                    r.SourceId.ToString(),
+                    r.RevisionId,
+                    r.RevisionName,
+                    r.Branch,
+                    r.Checks
+                        .Select(c => new StoredScanReportCheck(
+                            c.PluginId,
+                            c.Name,
+                            new StoredReport(
+                                c.Configuration?.ToDictionary(p => p.Key, p => p.Value),
+                                c.Assets
+                                    .Select(a => new StoredAsset(
+                                        a.Id,
+                                        a.Name,
+                                        a.Result,
+                                        a.Summary,
+                                        a.Properties?.ToDictionary(p => p.Key, p => p.Value),
+                                        a.Output))
+                                    .ToList())
+                            ))
+                        .ToList()
+                    ))
+                .ToList();
         }
 
 
@@ -162,22 +201,28 @@ namespace CodeSniffer.Repository.LiteDB.Reports
         [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
         private class ReportCheckRecord
         {
+            public Guid PluginId { get; }
+            public string Name { get; }
             public CsReportResult Result { get; }
             public IDictionary<string, string>? Configuration { get; }
             public ReportAssetRecord[] Assets { get; }
 
 
             [BsonCtor]
-            public ReportCheckRecord(CsReportResult result, BsonDocument? configuration, BsonArray assets)
+            public ReportCheckRecord(Guid pluginId, string name, CsReportResult result, BsonDocument? configuration, BsonArray assets)
             {
+                PluginId = pluginId;
+                Name = name;
                 Result = result;
                 Configuration = configuration?.ToObject<IDictionary<string, string>>();
                 Assets = assets.ToArray<ReportAssetRecord>();
             }
 
 
-            public ReportCheckRecord(CsReportResult result, IDictionary<string, string>? configuration, ReportAssetRecord[] assets)
+            public ReportCheckRecord(Guid pluginId, string name, CsReportResult result, IDictionary<string, string>? configuration, ReportAssetRecord[] assets)
             {
+                PluginId = pluginId;
+                Name = name;
                 Result = result;
                 Configuration = configuration;
                 Assets = assets;
@@ -186,8 +231,10 @@ namespace CodeSniffer.Repository.LiteDB.Reports
 
 
 
+        [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
         public class ReportAssetRecord
         {
+            public string Id { get; }
             public string Name { get; }
             public CsReportResult Result { get; }
             public string? Summary { get; }
@@ -196,8 +243,9 @@ namespace CodeSniffer.Repository.LiteDB.Reports
 
 
             [BsonCtor]
-            public ReportAssetRecord(string name, CsReportResult result, string? summary, BsonDocument? properties, string? output)
+            public ReportAssetRecord(string id, string name, CsReportResult result, string? summary, BsonDocument? properties, string? output)
             {
+                Id = id;
                 Name = name;
                 Result = result;
                 Summary = summary;
@@ -206,8 +254,105 @@ namespace CodeSniffer.Repository.LiteDB.Reports
             }
 
 
-            public ReportAssetRecord(string name, CsReportResult result, string? summary, IDictionary<string, string>? properties, string? output)
+            public ReportAssetRecord(string id, string name, CsReportResult result, string? summary, IDictionary<string, string>? properties, string? output)
             {
+                Id = id;
+                Name = name;
+                Result = result;
+                Summary = summary;
+                Properties = properties;
+                Output = output;
+            }
+        }
+
+
+        [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
+        private class ArchivedReportRecord : ReportRecord
+        {
+            public ObjectId OriginalId { get; }
+
+
+            [BsonCtor]
+            public ArchivedReportRecord(ObjectId id, ObjectId originalId, ObjectId definitionId, ObjectId sourceId, string revisionId, string revisionName, string branch, DateTime timestamp, CsReportResult result, BsonArray checks)
+                : base(id, definitionId, sourceId, revisionId, revisionName, branch, timestamp, result, checks)
+            {
+                OriginalId = originalId;
+            }
+
+
+            public ArchivedReportRecord(ObjectId id, ObjectId originalId, ObjectId definitionId, ObjectId sourceId, string revisionId, string revisionName, string branch, DateTime timestamp, CsReportResult result, ReportCheckRecord[] checks)
+                : base(id, definitionId, sourceId, revisionId, revisionName, branch, timestamp, result, checks)
+            {
+                OriginalId = originalId;
+            }
+        }
+
+
+        private class StoredScanReport : ICsScanReport
+        {
+            public string DefinitionId { get; }
+            public string SourceId { get; }
+            public string RevisionId { get; }
+            public string RevisionName { get; }
+            public string Branch { get; }
+            public IReadOnlyList<ICsScanReportCheck> Checks { get; }
+
+
+            public StoredScanReport(string definitionId, string sourceId, string revisionId, string revisionName, string branch, IReadOnlyList<ICsScanReportCheck> checks)
+            {
+                DefinitionId = definitionId;
+                SourceId = sourceId;
+                RevisionId = revisionId;
+                RevisionName = revisionName;
+                Branch = branch;
+                Checks = checks;
+            }
+        }
+
+
+        private class StoredScanReportCheck : ICsScanReportCheck
+        {
+            public Guid PluginId { get; }
+            public string Name { get; }
+            public ICsReport Report { get; }
+
+
+            public StoredScanReportCheck(Guid pluginId, string name, ICsReport report)
+            {
+                PluginId = pluginId;
+                Name = name;
+                Report = report;
+            }
+        }
+
+
+        private class StoredReport : ICsReport
+        {
+            public IReadOnlyDictionary<string, string>? Configuration { get; }
+            public IEnumerable<ICsReportAsset> Assets { get; }
+
+
+            public StoredReport(IReadOnlyDictionary<string, string>? configuration, IEnumerable<ICsReportAsset> assets)
+            {
+                Configuration = configuration;
+                Assets = assets;
+            }
+        }
+
+
+        private class StoredAsset : ICsReportAsset
+        {
+            public string Id { get; }
+            public string Name { get; }
+            public CsReportResult Result { get; }
+            public string? Summary { get; }
+            public IReadOnlyDictionary<string, string>? Properties { get; }
+            public string? Output { get; }
+
+
+            public StoredAsset(string id, string name, CsReportResult result, string? summary, IReadOnlyDictionary<string, string>? properties, string? output)
+            {
+                Id = id;
                 Name = name;
                 Result = result;
                 Summary = summary;

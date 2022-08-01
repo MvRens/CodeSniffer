@@ -20,12 +20,36 @@ namespace CodeSniffer.API.Report
         }
 
 
-        [HttpGet("definitionstatus")]
+        [HttpGet("active")]
         [Authorize(Policy = CsPolicyNames.Developers)]
-        public async ValueTask<IReadOnlyDictionary<string, string>> List()
+        public async ValueTask<IReadOnlyList<ScanReportViewModel>> List()
         {
-            var definitions = await reportRepository.GetDefinitionsStatus();
-            return definitions.ToDictionary(p => p.Key, p => p.Value.ToString());
+            var definitions = await reportRepository.GetActiveReports();
+            return definitions
+                .Select(r => new ScanReportViewModel(
+                    r.DefinitionId,
+                    r.SourceId,
+                    r.RevisionId,
+                    r.RevisionName,
+                    r.Branch,
+                    r.Checks
+                        .Select(c => new ScanReportCheckViewModel(
+                            c.Name,
+                            c.Report.Configuration,
+                            c.Report.Assets
+                                .Select(a => new ScanReportAssetViewModel(
+                                    a.Id,
+                                    a.Name,
+                                    a.Result,
+                                    a.Summary,
+                                    a.Properties,
+                                    a.Output
+                                ))
+                                .ToList()
+                        ))
+                        .ToList()
+                ))
+                .ToList();
         }
     }
 }

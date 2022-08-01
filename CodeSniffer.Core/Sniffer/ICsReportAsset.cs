@@ -8,7 +8,7 @@
         /// <summary>
         /// A unique identifier for the asset, used to track the asset across multiple reports. Should be stable between scans.
         /// </summary>
-        public string Id { get; }
+        string Id { get; }
 
         /// <summary>
         /// The name of the asset for display purposes.

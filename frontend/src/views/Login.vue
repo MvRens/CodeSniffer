@@ -99,7 +99,7 @@ async function submitLogin()
   }
 
   loginStore.login(loginResponse.data.token);
-  router.push({ name: 'Home' });
+  router.push({ name: 'Dashboard' });
 }
 </script>
 

@@ -5,7 +5,7 @@ namespace CodeSniffer.Repository.Reports
     public interface IReportRepository
     {
         ValueTask<string> Store(ICsScanReport report);
-        ValueTask<IReadOnlyDictionary<string, CsReportResult>> GetDefinitionsStatus();
+        ValueTask<IReadOnlyList<ICsScanReport>> GetActiveReports();
     }
 
 

@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CodeSniffer.API.Authentication
 {
     [ApiController]
-    [Route("/api")]
+    [Route("/api/login")]
     public class AuthenticationController : ControllerBase
     {
         private readonly IAuthenticationProvider authenticationProvider;
@@ -19,7 +19,7 @@ namespace CodeSniffer.API.Authentication
         }
 
 
-        [HttpPost("login")]
+        [HttpPost]
         public async ValueTask<ActionResult<LoginResponse>> Login(LoginRequest request)
         {
             var token = await authenticationProvider.Validate(request.Username, request.Password);
@@ -30,7 +30,7 @@ namespace CodeSniffer.API.Authentication
         }
 
 
-        [HttpPost("login/validate")]
+        [HttpPost("validate")]
         [Authorize]
         public ActionResult Validate()
         {

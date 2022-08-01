@@ -2,7 +2,7 @@ import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router';
 import { useLogin } from '../store/login';
 
 import EmptyRoute from '../views/EmptyRoute.vue';
-import Home from '../views/Home.vue';
+import Dashboard from '../views/Dashboard.vue';
 import Login from '../views/Login.vue';
 import Logout from '../views/Logout.vue';
 import Definitions from '../views/Definitions.vue';
@@ -11,12 +11,13 @@ import Sources from '../views/Sources.vue';
 import Source from '../views/Source.vue';
 import SourceGroup from '../views/SourceGroup.vue';
 import Users from '../views/Users.vue';
+import User from '../views/User.vue';
 
 const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
-    name: 'Home',
-    component: Home
+    name: 'Dashboard',
+    component: Dashboard
   },
   {
     path: '/login',
@@ -100,9 +101,27 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/users',
     name: 'Users',
-    component: Users
-  }
-];
+    component: EmptyRoute,
+    redirect: { name: 'ListUsers' },
+    children: [
+      {
+        path: '',
+        name: 'ListUsers',
+        component: Users
+      },      
+      {
+        path: '/users/create',
+        name: 'CreateUser',
+        component: User
+      },
+      {
+        path: '/users/edit/:id',
+        name: 'EditUser',
+        component: User,
+        props: true
+      }
+    ]
+  },];
 
 const router = createRouter({
   history: createWebHistory('/'),

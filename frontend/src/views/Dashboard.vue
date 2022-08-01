@@ -21,10 +21,10 @@ en:
 import { computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-//import { useNotifications } from '@/lib/notifications';
+import { useNotifications } from '@/lib/notifications';
 
 const { t } = useI18n();
-//const notifications = useNotifications();
+const notifications = useNotifications();
 
 const isLoading = computed(() => 
 {

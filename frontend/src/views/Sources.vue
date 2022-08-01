@@ -101,7 +101,7 @@ const isLoading = computed(() =>
 });
 
 
-onMounted(() =>
+onMounted(async () =>
 {
   loadSources();
   loadSourceGroups();

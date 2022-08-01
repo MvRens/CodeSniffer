@@ -1,7 +1,7 @@
 <template>
   <div v-if="showMenu" class="menu">
     <div class="container">
-      <router-link :to="{ name: 'Home' }">{{ t('menu.home') }}</router-link>
+      <router-link :to="{ name: 'Dashboard' }">{{ t('menu.dashboard') }}</router-link>
       <router-link :to="{ name: 'Definitions' }">{{ t('menu.definitions') }}</router-link>
       <router-link :to="{ name: 'Sources' }">{{ t('menu.sources') }}</router-link>
       <router-link :to="{ name: 'Users' }" v-if="isAdmin">{{ t('menu.users') }}</router-link>
@@ -15,7 +15,7 @@
 <i18n lang="yaml">
 en:
   menu:
-    home: "Dashboard"
+    dashboard: "Dashboard"
     definitions: "Scan jobs"
     sources: "Sources"
     users: "Users"
