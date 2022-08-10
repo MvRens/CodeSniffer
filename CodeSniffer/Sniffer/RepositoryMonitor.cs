@@ -223,7 +223,7 @@ namespace CodeSniffer.Sniffer
 
                 foreach (var definitionInfo in definitions)
                 {
-                    var result = await jobRunner.Execute(definitionInfo.DefinitionId, workingCopyPath);
+                    var result = await jobRunner.Execute(definitionInfo.DefinitionId, workingCopyPath, cancellationToken);
                     var report = new CsScanReport(definitionInfo.DefinitionId, sourceId, revision.Id, revision.Name, revision.Branch, result.Checks
                         .Select(c => new CsScanReportCheck(c.PluginId, c.Name, c.Report))
                         .ToList());

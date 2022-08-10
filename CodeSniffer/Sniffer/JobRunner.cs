@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using CodeSniffer.Core.Sniffer;
 using CodeSniffer.Plugins;
@@ -25,7 +26,7 @@ namespace CodeSniffer.Sniffer
         }
 
 
-        public async ValueTask<ICsJobResult> Execute(string definitionId, string workingCopyPath)
+        public async ValueTask<ICsJobResult> Execute(string definitionId, string workingCopyPath, CancellationToken cancellationToken)
         {
             var jobLogger = logger.ForContext("DefinitionId", definitionId);
 
@@ -40,7 +41,7 @@ namespace CodeSniffer.Sniffer
                 if (pluginManager.ById(check.PluginId)?.Plugin is ICsSnifferPlugin plugin)
                 {
                     var sniffer = plugin.Create(jobLogger, check.Configuration);
-                    var report = await sniffer.Execute(workingCopyPath);
+                    var report = await sniffer.Execute(workingCopyPath, cancellationToken);
 
                     checkReports.Add(new CsJobCheck(check.PluginId, check.Name, report ?? EmptyReport));
                 }
