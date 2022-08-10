@@ -124,32 +124,52 @@ namespace CodeSniffer.Repository.LiteDB.Reports
             var collection = connection.Database.GetCollection<ReportRecord>(ReportCollection);
 
             return collection.FindAll()
-                .Select(r => new StoredScanReport(
-                    r.DefinitionId.ToString(),
-                    r.SourceId.ToString(),
-                    r.RevisionId,
-                    r.RevisionName,
-                    r.Branch,
-                    r.Checks
-                        .Select(c => new StoredScanReportCheck(
-                            c.PluginId,
-                            c.Name,
-                            new StoredReport(
-                                c.Configuration?.ToDictionary(p => p.Key, p => p.Value),
-                                c.Assets
-                                    .Select(a => new StoredAsset(
-                                        a.Id,
-                                        a.Name,
-                                        a.Result,
-                                        a.Summary,
-                                        a.Properties?.ToDictionary(p => p.Key, p => p.Value),
-                                        a.Output))
-                                    .ToList())
-                            ))
-                        .ToList()
-                    ))
+                .Select(MapReport)
                 .ToList();
         }
+
+
+        public async ValueTask<IReadOnlyList<ICsScanReport>> GetSourceBranchReports(string sourceId, string branch)
+        {
+            var sourceObjectId = new ObjectId(sourceId);
+
+            using var connection = await GetConnection();
+            var collection = connection.Database.GetCollection<ReportRecord>(ReportCollection);
+
+            return collection.Find(r => r.SourceId == sourceObjectId && r.Branch == branch)
+                .Select(MapReport)
+                .ToList();
+        }
+
+
+
+        private ICsScanReport MapReport(ReportRecord record)
+        {
+            return new StoredScanReport(
+                record.DefinitionId.ToString(),
+                record.SourceId.ToString(),
+                record.RevisionId,
+                record.RevisionName,
+                record.Branch,
+                record.Checks
+                    .Select(c => new StoredScanReportCheck(
+                        c.PluginId,
+                        c.Name,
+                        new StoredReport(
+                            c.Configuration?.ToDictionary(p => p.Key, p => p.Value),
+                            c.Assets
+                                .Select(a => new StoredAsset(
+                                    a.Id,
+                                    a.Name,
+                                    a.Result,
+                                    a.Summary,
+                                    a.Properties?.ToDictionary(p => p.Key, p => p.Value),
+                                    a.Output))
+                                .ToList())
+                    ))
+                    .ToList());
+        }
+
 
 
         [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]

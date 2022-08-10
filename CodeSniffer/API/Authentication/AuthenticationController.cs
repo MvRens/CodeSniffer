@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CodeSniffer.API.Authentication
 {
-    [ApiController]
     [Route("/api/login")]
     public class AuthenticationController : ControllerBase
     {

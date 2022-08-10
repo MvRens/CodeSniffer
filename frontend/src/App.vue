@@ -69,6 +69,7 @@ $menuItemBorder: solid 2px #404040;
     padding-left: 1em;
     padding-right: 1em;
     text-decoration: none;
+    border-bottom: solid 3px transparent;
     
     &:not(:first-child)
     {
@@ -83,6 +84,7 @@ $menuItemBorder: solid 2px #404040;
     &.router-link-active
     {
       background-color: #303030;
+      border-bottom: solid 3px #33C3F0;
     }
 
     &.logout

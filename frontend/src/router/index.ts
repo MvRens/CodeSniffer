@@ -5,6 +5,7 @@ import EmptyRoute from '../views/EmptyRoute.vue';
 import Dashboard from '../views/Dashboard.vue';
 import Login from '../views/Login.vue';
 import Logout from '../views/Logout.vue';
+import Report from '../views/Report.vue';
 import Definitions from '../views/Definitions.vue';
 import Definition from '../views/Definition.vue';
 import Sources from '../views/Sources.vue';
@@ -34,6 +35,21 @@ const routes: Array<RouteRecordRaw> = [
     meta: {
       hideMenu: true
     }
+  },
+
+  {
+    path: '/report',
+    name: 'Report',
+    component: EmptyRoute,
+    redirect: { name: 'Dashboard' },
+    children: [
+      {
+        path: '/source/:sourceId/branch/:branchName',
+        name: 'SourceBranchReport',
+        component: Report,
+        props: true
+      }
+    ]
   },
 
   {

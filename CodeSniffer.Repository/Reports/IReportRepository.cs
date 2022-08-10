@@ -6,6 +6,7 @@ namespace CodeSniffer.Repository.Reports
     {
         ValueTask<string> Store(ICsScanReport report);
         ValueTask<IReadOnlyList<ICsScanReport>> GetActiveReports();
+        ValueTask<IReadOnlyList<ICsScanReport>> GetSourceBranchReports(string sourceId, string branch);
     }
 
 
