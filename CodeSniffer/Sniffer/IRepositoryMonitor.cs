@@ -9,7 +9,7 @@ namespace CodeSniffer.Sniffer
     {
         void Initialize(IEnumerable<CsStoredSource> sources, IEnumerable<CsStoredSourceGroup> sourceGroups, IEnumerable<CsStoredDefinition> definitions);
 
-        void DefinitionChanged(string id, CsDefinition newDefinition);
+        void DefinitionChanged(CsStoredDefinition newDefinition);
         void DefinitionRemoved(string id);
 
         void SourceChanged(string id, CsSource newSource);

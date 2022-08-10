@@ -7,8 +7,8 @@
         ValueTask<IReadOnlyList<ListDefinition>> List();
         ValueTask<CsStoredDefinition> GetDetails(string id);
 
-        ValueTask<string> Insert(CsDefinition newDefinition, string author);
-        ValueTask Update(string id, CsDefinition newDefinition, string author);
+        ValueTask<CsStoredDefinition> Insert(CsDefinition newDefinition, string author);
+        ValueTask<CsStoredDefinition> Update(string id, CsDefinition newDefinition, string author);
         ValueTask Remove(string id, string author);
     }
 

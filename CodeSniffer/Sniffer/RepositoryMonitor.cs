@@ -34,7 +34,7 @@ namespace CodeSniffer.Sniffer
 
         private readonly ConcurrentDictionary<string, ICsSourceCodeRepository> cachedSources = new();
         private readonly ConcurrentDictionary<string, IReadOnlyList<string>> cachedSourceGroups = new();
-        private readonly ConcurrentDictionary<string, string> cachedDefinitionSourceGroups = new();
+        private readonly ConcurrentDictionary<string, DefinitionInfo> cachedDefinitions = new();
 
         private IReadOnlyList<GroupedRepository> cachedGroupedRepositories = new List<GroupedRepository>();
         private volatile bool cachedGroupedRepositoriesInvalidated = true;
@@ -81,22 +81,24 @@ namespace CodeSniffer.Sniffer
                 cachedSourceGroups.TryAdd(sourceGroup.Id, sourceGroup.SourceIds);
 
             foreach (var definition in definitions)
-                cachedDefinitionSourceGroups.TryAdd(definition.Id, definition.SourceGroupId);
+                cachedDefinitions.TryAdd(definition.Id, new DefinitionInfo(definition.Id, definition.SourceGroupId, definition.Version));
 
             monitorTask = Task.Factory.StartNew(() => MonitorTask(cancellationTokenSource.Token));
         }
 
 
-        public void DefinitionChanged(string id, CsDefinition newDefinition)
+        public void DefinitionChanged(CsStoredDefinition newDefinition)
         {
-            cachedDefinitionSourceGroups.AddOrUpdate(id, newDefinition.SourceGroupId, (_, _) => newDefinition.SourceGroupId);
+            var definitionInfo = new DefinitionInfo(newDefinition.Id, newDefinition.SourceGroupId, newDefinition.Version);
+
+            cachedDefinitions.AddOrUpdate(newDefinition.Id, definitionInfo, (_, _) => definitionInfo);
             cachedGroupedRepositoriesInvalidated = true;
         }
 
 
         public void DefinitionRemoved(string id)
         {
-            if (cachedDefinitionSourceGroups.TryRemove(id, out _))
+            if (cachedDefinitions.TryRemove(id, out _))
                 cachedGroupedRepositoriesInvalidated = true;
         }
 
@@ -191,13 +193,13 @@ namespace CodeSniffer.Sniffer
             }
 
             cachedGroupedRepositoriesInvalidated = false;
-            cachedGroupedRepositories = cachedDefinitionSourceGroups
-                .SelectMany(dsg => GetSourceGroupRepositories(dsg.Key, dsg.Value))
+            cachedGroupedRepositories = cachedDefinitions
+                .SelectMany(dsg => GetSourceGroupRepositories(dsg.Key, dsg.Value.SourceGroupId))
                 .GroupBy(r => r.SourceId)
                 .Select(g =>
                 {
                     var first = g.First();
-                    return new GroupedRepository(first.SourceId, first.Repository, g.Select(d => d.DefinitionId).ToList());
+                    return new GroupedRepository(first.SourceId, first.Repository, g.Select(d => cachedDefinitions[d.DefinitionId]).ToList());
                 })
                 .ToList();
 
@@ -205,39 +207,69 @@ namespace CodeSniffer.Sniffer
         }
 
 
-        private async ValueTask<int> Scan(string sourceId, ICsSourceCodeRepository sourceCodeRepository, IReadOnlyList<string> definitions, CancellationToken cancellationToken)
+        private async ValueTask<int> Scan(string sourceId, ICsSourceCodeRepository sourceCodeRepository, IReadOnlyList<DefinitionInfo> definitions, CancellationToken cancellationToken)
         {
             logger.Debug("Scanning source Id {sourceId} for new revisions", sourceId);
             var newRevisions = 0;
 
             await foreach (var revision in sourceCodeRepository.GetRevisions(cancellationToken))
             {
-                // TODO MUSTHAVE also scan again if the definition(s) have changed, so you don't need a new commit to trigger a scan
-                if (await sourceCodeStatusRepository.HasRevision(sourceId, revision.Id))
-                {
-                    logger.Debug("Found known revision {revisionName} for source code repository {sourceId}, skipping", revision.Name, sourceId);
+                if (await SkipRevision(sourceId, revision.Name, revision.Id, definitions))
                     continue;
-                }
 
                 var workingCopyPath = GetUniquePath(appSettings.CheckoutPath, GetSafeFilename(sourceId + '.' + revision.Id));
-                logger.Information("Found new revision {revisionName} for source code repository {sourceId}, checking out working copy at {workingCopyPath}", revision.Name, sourceId, workingCopyPath);
+                logger.Information("Checking out working copy at {workingCopyPath}", workingCopyPath);
                 await sourceCodeRepository.Checkout(revision, workingCopyPath);
 
-                foreach (var definitionId in definitions)
+                foreach (var definitionInfo in definitions)
                 {
-                    var result = await jobRunner.Execute(definitionId, workingCopyPath);
-                    var report = new CsScanReport(definitionId, sourceId, revision.Id, revision.Name, revision.Branch, result.Checks
+                    var result = await jobRunner.Execute(definitionInfo.DefinitionId, workingCopyPath);
+                    var report = new CsScanReport(definitionInfo.DefinitionId, sourceId, revision.Id, revision.Name, revision.Branch, result.Checks
                         .Select(c => new CsScanReportCheck(c.PluginId, c.Name, c.Report))
                         .ToList());
 
                     await reportFacade.StoreReport(report);
                 }
 
-                await sourceCodeStatusRepository.StoreRevision(sourceId, revision.Id);
+                await sourceCodeStatusRepository.StoreRevision(sourceId, revision.Id, definitions.Select(d => new RevisionDefinition(d.DefinitionId, d.Version)).ToList());
                 newRevisions++;
             }
 
             return newRevisions;
+        }
+
+
+        private async ValueTask<bool> SkipRevision(string sourceId, string revisionName, string revisionId, IEnumerable<DefinitionInfo> definitions)
+        {
+            var revisionDefinitions = (await sourceCodeStatusRepository.GetRevisionDefinitions(sourceId, revisionId))
+                .ToDictionary(p => p.DefinitionId, p => p.Version);
+
+            if (revisionDefinitions.Count == 0)
+            {
+                logger.Debug("Found new revision {revisionName} for source code repository {sourceId}", revisionName, sourceId);
+                return false;
+            }
+
+            foreach (var definitionInfo in definitions)
+            {
+                if (!revisionDefinitions.TryGetValue(definitionInfo.DefinitionId, out var scannedVersion))
+                {
+                    logger.Debug("Previously scanned revision {revisionName} for source code repository {sourceId} not yet scanned by definition {definitionId}, scanning again", 
+                        revisionName, sourceId, definitionInfo.DefinitionId);
+                    return false;
+                }
+
+                if (scannedVersion == definitionInfo.Version) 
+                    continue;
+
+                logger.Debug("Previously scanned revision {revisionName} for source code repository {sourceId} was scanned by an older version of definition {definitionId}, scanning again",
+                    revisionName, sourceId, definitionInfo.DefinitionId);
+                return false;
+            }
+
+            // All definitions were scanned using the same version. Definitions may have been removed, but
+            // this does not require a rescan.
+            return true;
         }
 
 
@@ -287,10 +319,10 @@ namespace CodeSniffer.Sniffer
         {
             public string SourceId { get; }
             public ICsSourceCodeRepository Repository { get; }
-            public IReadOnlyList<string> Definitions { get; }
+            public IReadOnlyList<DefinitionInfo> Definitions { get; }
 
 
-            public GroupedRepository(string sourceId, ICsSourceCodeRepository repository, IReadOnlyList<string> definitions)
+            public GroupedRepository(string sourceId, ICsSourceCodeRepository repository, IReadOnlyList<DefinitionInfo> definitions)
             {
                 SourceId = sourceId;
                 Repository = repository;
@@ -349,6 +381,22 @@ namespace CodeSniffer.Sniffer
                 PluginId = pluginId;
                 Name = name;
                 Report = report;
+            }
+        }
+
+
+        private class DefinitionInfo
+        {
+            public string DefinitionId { get; }
+            public string SourceGroupId { get; }
+            public int Version { get; }
+
+
+            public DefinitionInfo(string definitionId, string sourceGroupId, int version)
+            {
+                DefinitionId = definitionId;
+                SourceGroupId = sourceGroupId;
+                Version = version;
             }
         }
     }

@@ -40,7 +40,7 @@ namespace CodeSniffer.Sniffer
                 if (pluginManager.ById(check.PluginId)?.Plugin is ICsSnifferPlugin plugin)
                 {
                     var sniffer = plugin.Create(jobLogger, check.Configuration);
-                    var report = sniffer.Execute(workingCopyPath);
+                    var report = await sniffer.Execute(workingCopyPath);
 
                     checkReports.Add(new CsJobCheck(check.PluginId, check.Name, report ?? EmptyReport));
                 }

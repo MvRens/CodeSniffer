@@ -16,8 +16,8 @@ namespace CodeSniffer.Facade
         ValueTask UpdateSourceGroup(string id, CsSourceGroup newSourceGroup, string author);
         ValueTask RemoveSourceGroup(string id, string author);
 
-        ValueTask<string> InsertDefinition(CsDefinition newDefinition, string author);
-        ValueTask UpdateDefinition(string id, CsDefinition newDefinition, string author);
+        ValueTask<CsStoredDefinition> InsertDefinition(CsDefinition newDefinition, string author);
+        ValueTask<CsStoredDefinition> UpdateDefinition(string id, CsDefinition newDefinition, string author);
         ValueTask RemoveDefinition(string id, string author);
 
     }

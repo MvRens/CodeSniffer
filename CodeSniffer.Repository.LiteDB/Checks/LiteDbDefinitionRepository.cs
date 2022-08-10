@@ -66,7 +66,7 @@ namespace CodeSniffer.Repository.LiteDB.Checks
         }
 
 
-        public async ValueTask<string> Insert(CsDefinition newDefinition, string author)
+        public async ValueTask<CsStoredDefinition> Insert(CsDefinition newDefinition, string author)
         {
             using var connection = await GetConnection();
             var collection = connection.Database.GetCollection<DefinitionRecord>(DefinitionCollection);
@@ -75,11 +75,11 @@ namespace CodeSniffer.Repository.LiteDB.Checks
             var newRecord = MapDefinition(id, newDefinition, 1, author);
 
             collection.Insert(newRecord);
-            return id.ToString();
+            return new CsStoredDefinition(id.ToString(), newDefinition.Name, 1, author, newDefinition.SourceGroupId, newDefinition.Checks);
         }
 
 
-        public async ValueTask Update(string id, CsDefinition newDefinition, string author)
+        public async ValueTask<CsStoredDefinition> Update(string id, CsDefinition newDefinition, string author)
         {
             // TODO deal with concurrent edits
 
@@ -94,7 +94,7 @@ namespace CodeSniffer.Repository.LiteDB.Checks
 
             var newRecord = MapDefinition(recordId, newDefinition, currentRecord.Version + 1, author);
             if (!newRecord.Changed(currentRecord))
-                return;
+                return MapDefinition(currentRecord);
 
 
             var archiveCollection = connection.Database.GetCollection<ArchivedDefinitionRecord>(DefinitionArchiveCollection);
@@ -110,6 +110,7 @@ namespace CodeSniffer.Repository.LiteDB.Checks
             ));
 
             collection.Update(recordId, newRecord);
+            return MapDefinition(newRecord);
         }
 
 

@@ -24,16 +24,23 @@ namespace CodeSniffer.Repository.LiteDB.Source
         }
 
 
-        public async ValueTask<bool> HasRevision(string sourceId, string revisionId)
+        public async ValueTask<IReadOnlyList<RevisionDefinition>> GetRevisionDefinitions(string sourceId,
+            string revisionId)
         {
             using var connection = await GetConnection();
             var revisionCollection = connection.Database.GetCollection<RevisionRecord>(RevisionCollection);
 
-            return revisionCollection.Exists(r => r.RevisionId == revisionId && r.SourceId == sourceId);
+            var revision = revisionCollection.FindOne(r => r.RevisionId == revisionId && r.SourceId == sourceId);
+            if (revision == null)
+                return Array.Empty<RevisionDefinition>();
+
+            return revision.Definitions
+                .Select(d => new RevisionDefinition(d.DefinitionId, d.Version))
+                .ToList();
         }
 
 
-        public async ValueTask StoreRevision(string sourceId, string revisionId)
+        public async ValueTask StoreRevision(string sourceId, string revisionId, IReadOnlyList<RevisionDefinition> definitions)
         {
             using var connection = await GetConnection();
             var revisionCollection = connection.Database.GetCollection<RevisionRecord>(RevisionCollection);
@@ -41,7 +48,8 @@ namespace CodeSniffer.Repository.LiteDB.Source
             if (revisionCollection.Exists(r => r.RevisionId == revisionId && r.SourceId == sourceId))
                 return;
 
-            revisionCollection.Insert(new RevisionRecord(ObjectId.NewObjectId(), sourceId, revisionId));
+            revisionCollection.Insert(new RevisionRecord(ObjectId.NewObjectId(), sourceId, revisionId, 
+                definitions.Select(d => new RevisionDefinitionRecord(d.DefinitionId, d.Version)).ToArray()));
         }
 
 
@@ -54,13 +62,41 @@ namespace CodeSniffer.Repository.LiteDB.Source
             public string SourceId { get; }
             public string RevisionId{ get; }
 
+            public RevisionDefinitionRecord[] Definitions { get; }
+
 
             [BsonCtor]
-            public RevisionRecord(ObjectId id, string sourceId, string revisionId)
+            public RevisionRecord(ObjectId id, string sourceId, string revisionId, BsonArray definitions)
             {
                 Id = id;
                 SourceId = sourceId;
                 RevisionId = revisionId;
+                Definitions = definitions.ToArray<RevisionDefinitionRecord>();
+            }
+
+
+            public RevisionRecord(ObjectId id, string sourceId, string revisionId, RevisionDefinitionRecord[] definitions)
+            {
+                Id = id;
+                SourceId = sourceId;
+                RevisionId = revisionId;
+                Definitions = definitions;
+            }
+        }
+
+
+        [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
+        private class RevisionDefinitionRecord
+        {
+            public string DefinitionId { get; }
+            public int Version { get; }
+
+
+            [BsonCtor]
+            public RevisionDefinitionRecord(string definitionId, int version)
+            {
+                DefinitionId = definitionId;
+                Version = version;
             }
         }
     }

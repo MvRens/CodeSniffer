@@ -9,6 +9,6 @@
         /// Run analysis on the code in the provided path and return a report.
         /// </summary>
         /// <param name="path">The path to the source code working copy.</param>
-        ICsReport? Execute(string path);
+        ValueTask<ICsReport?> Execute(string path);
     }
 }

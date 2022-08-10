@@ -187,7 +187,7 @@ async function loadDefinition(id: string)
       configuration: c.configuration
     };
 
-    return check;
+    return watchCheck(check);
   }));
 }
 

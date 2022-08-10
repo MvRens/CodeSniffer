@@ -1,6 +1,7 @@
 ﻿using System.Runtime.CompilerServices;
 using CodeSniffer.Core.Source;
 using LibGit2Sharp;
+using LibGit2Sharp.Handlers;
 using Serilog;
 
 namespace CodeSniffer.SourceCodeRepository.Git
@@ -25,7 +26,7 @@ namespace CodeSniffer.SourceCodeRepository.Git
         {
             logger.Debug("Listing remote reference for url {url}", options.Url);
 
-            var references = Repository.ListRemoteReferences(options.Url);
+            var references = Repository.ListRemoteReferences(options.Url, GetCredentialsProvider(options));
             foreach (var reference in references.Where(r => r.IsLocalBranch && r.CanonicalName.StartsWith(BranchNamePrefix)))
             {
                 var branchName = reference.CanonicalName[BranchNamePrefix.Length..];
@@ -46,13 +47,7 @@ namespace CodeSniffer.SourceCodeRepository.Git
             Repository.Clone(options.Url, path, new CloneOptions
             {
                 BranchName = gitRevision.Branch,
-                CredentialsProvider = !string.IsNullOrEmpty(options.Username) || !string.IsNullOrEmpty(options.Password)
-                    ? (_, _, _) => new UsernamePasswordCredentials
-                    {
-                        Username = options.Username,
-                        Password = options.Password
-                    }
-                    : null
+                CredentialsProvider = GetCredentialsProvider(options)
             });
 
 
@@ -73,6 +68,17 @@ namespace CodeSniffer.SourceCodeRepository.Git
             return ValueTask.CompletedTask;
         }
 
+
+        private static CredentialsHandler? GetCredentialsProvider(GitCsSourceCodeRepositoryOptions options)
+        {
+            return !string.IsNullOrEmpty(options.Username) || !string.IsNullOrEmpty(options.Password)
+                ? (_, _, _) => new UsernamePasswordCredentials
+                {
+                    Username = options.Username,
+                    Password = options.Password
+                }
+                : null;
+        }
 
 
         private class GitCsSourceCodeRevision : ICsSourceCodeRevision

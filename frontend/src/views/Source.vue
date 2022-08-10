@@ -150,8 +150,10 @@ async function loadSource(id: string)
   name.value = response.data.name;
   originalName.value = name.value;
 
-  pluginId.value = response.data.pluginId;
+  pluginId.value = response.data.pluginId;  
   configuration.value = response.data.configuration;
+
+  lastPluginId = pluginId.value;
 }
 
 

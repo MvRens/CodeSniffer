@@ -76,18 +76,19 @@ namespace CodeSniffer.Facade
 
 
 
-        public async ValueTask<string> InsertDefinition(CsDefinition newDefinition, string author)
+        public async ValueTask<CsStoredDefinition> InsertDefinition(CsDefinition newDefinition, string author)
         {
-            var id = await definitionRepository.Insert(newDefinition, author);
-            repositoryMonitor.DefinitionChanged(id, newDefinition);
-            return id;
+            var storedDefinition = await definitionRepository.Insert(newDefinition, author);
+            repositoryMonitor.DefinitionChanged(storedDefinition);
+            return storedDefinition;
         }
 
 
-        public async ValueTask UpdateDefinition(string id, CsDefinition newDefinition, string author)
+        public async ValueTask<CsStoredDefinition> UpdateDefinition(string id, CsDefinition newDefinition, string author)
         {
-            await definitionRepository.Update(id, newDefinition, author);
-            repositoryMonitor.DefinitionChanged(id, newDefinition);
+            var storedDefinition = await definitionRepository.Update(id, newDefinition, author);
+            repositoryMonitor.DefinitionChanged(storedDefinition);
+            return storedDefinition;
         }
 
 
