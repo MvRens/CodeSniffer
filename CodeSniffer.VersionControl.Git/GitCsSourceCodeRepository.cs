@@ -51,7 +51,7 @@ namespace CodeSniffer.SourceCodeRepository.Git
             });
 
 
-            var workingCopy = new Repository(path);
+            using var workingCopy = new Repository(path);
             if (workingCopy.Head.Tip.Sha == revision.Id) 
                 return ValueTask.CompletedTask;
 

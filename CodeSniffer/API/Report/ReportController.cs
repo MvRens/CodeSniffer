@@ -65,7 +65,7 @@ namespace CodeSniffer.API.Report
                                             .ToList(),
                                         MapResult(assets.Count > 0 ? assets.Max(a => a.Result) : CsReportResult.Success));
                                 })
-                                .Where(c => c.Result != ReportResult.Success)
+                                .Where(c => c.Result != ReportResult.Success && c.Result != ReportResult.Skipped)
                                 .OrderBy(c => c.Name, StringComparer.InvariantCultureIgnoreCase)
                                 .ToList();
 
@@ -177,6 +177,7 @@ namespace CodeSniffer.API.Report
         {
             return result switch
             {
+                CsReportResult.Skipped => ReportResult.Skipped,
                 CsReportResult.Success => ReportResult.Success,
                 CsReportResult.Warning => ReportResult.Warning,
                 CsReportResult.Critical => ReportResult.Critical,

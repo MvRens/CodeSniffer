@@ -7,6 +7,11 @@
     </div>
 
     <div v-else>
+      <div class="expandCollapse">
+        <button class="button button-secondary" @click="setAllExpanded(false)">{{ t('collapseAll') }}</button>
+        <button class="button button-secondary" @click="setAllExpanded(true)">{{ t('expandAll') }}</button>
+      </div>
+
       <div v-for="source in dashboard!.sources" :key="source.name">
         <ReportResultLine :result="source.result" class="source" @click="toggleExpanded(source)">
           {{ source.name }}
@@ -41,6 +46,9 @@ en:
 
   sourceBranchReport: "view report"
 
+  expandAll: "Expand all"
+  collapseAll: "Collapse all"
+
   notifications:
     loadDashboardFailed: "Failed to load dashboard: {message}"
 </i18n>
@@ -71,7 +79,7 @@ interface DashboardSourceViewModel
   name: string;
   branches: DashboardBranchAPIModel[];
   result: ReportResult;
-  expanded: Ref<boolean>;
+  expanded: boolean;
 }
 
 
@@ -103,7 +111,7 @@ async function loadDashboard()
           name: s.name,
           branches: s.branches,
           result: s.result,
-          expanded: ref(s.result !== ReportResult.Success)
+          expanded: ref(s.result !== ReportResult.Success && s.result !== ReportResult.Skipped) as unknown as boolean
         };
 
         return source;
@@ -119,10 +127,16 @@ async function loadDashboard()
 
 function toggleExpanded(source: DashboardSourceViewModel)
 {
-  // Some proxy magic happens otherwise which TypeScript can't handle because the
-  // DashboardSourceViewModel is supposed to contain a Ref<> not a boolean
-  var rawSource = toRaw(source);
-  rawSource.expanded.value = !rawSource.expanded.value;
+  source.expanded = !source.expanded;
+}
+
+
+function setAllExpanded(expanded: boolean)
+{
+  if (dashboard.value === undefined)
+    return;
+
+  dashboard.value.sources.forEach(s => s.expanded = expanded);
 }
 </script>
 
@@ -197,5 +211,14 @@ function toggleExpanded(source: DashboardSourceViewModel)
 .reportlink
 {
   margin-left: 2em;
+}
+
+
+.expandCollapse
+{
+  button
+  {
+    margin-right: 1em;
+  }
 }
 </style>

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -14,6 +14,8 @@ using CodeSniffer.Repository.Reports;
 using CodeSniffer.Repository.Source;
 using Serilog;
 using Serilog.Events;
+
+// TODO keep track of scanning jobs and their logs for frontend monitoring purposes
 
 namespace CodeSniffer.Sniffer
 {
@@ -221,6 +223,7 @@ namespace CodeSniffer.Sniffer
                 logger.Information("Checking out working copy at {workingCopyPath}", workingCopyPath);
                 await sourceCodeRepository.Checkout(revision, workingCopyPath);
 
+                logger.Information("Running scan jobs on {workingCopyPath}", workingCopyPath);
                 foreach (var definitionInfo in definitions)
                 {
                     var result = await jobRunner.Execute(definitionInfo.DefinitionId, workingCopyPath, cancellationToken);
@@ -233,6 +236,16 @@ namespace CodeSniffer.Sniffer
 
                 await sourceCodeStatusRepository.StoreRevision(sourceId, revision.Id, definitions.Select(d => new RevisionDefinition(d.DefinitionId, d.Version)).ToList());
                 newRevisions++;
+
+                try
+                {
+                    logger.Debug("Removing working copy at {workingCopyPath}", workingCopyPath);
+                    Directory.Delete(workingCopyPath, true);
+                }
+                catch (Exception e)
+                {
+                    logger.Warning(e, "Failed to remove working copy path {workingCopyPath}", workingCopyPath);
+                }
             }
 
             return newRevisions;
@@ -246,7 +259,7 @@ namespace CodeSniffer.Sniffer
 
             if (revisionDefinitions.Count == 0)
             {
-                logger.Debug("Found new revision {revisionName} for source code repository {sourceId}", revisionName, sourceId);
+                logger.Information("Found new revision {revisionName} for source code repository {sourceId}", revisionName, sourceId);
                 return false;
             }
 

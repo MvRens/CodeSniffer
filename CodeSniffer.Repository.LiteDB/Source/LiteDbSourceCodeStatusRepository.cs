@@ -24,8 +24,7 @@ namespace CodeSniffer.Repository.LiteDB.Source
         }
 
 
-        public async ValueTask<IReadOnlyList<RevisionDefinition>> GetRevisionDefinitions(string sourceId,
-            string revisionId)
+        public async ValueTask<IReadOnlyList<RevisionDefinition>> GetRevisionDefinitions(string sourceId, string revisionId)
         {
             using var connection = await GetConnection();
             var revisionCollection = connection.Database.GetCollection<RevisionRecord>(RevisionCollection);
@@ -45,11 +44,37 @@ namespace CodeSniffer.Repository.LiteDB.Source
             using var connection = await GetConnection();
             var revisionCollection = connection.Database.GetCollection<RevisionRecord>(RevisionCollection);
 
-            if (revisionCollection.Exists(r => r.RevisionId == revisionId && r.SourceId == sourceId))
-                return;
+            var existingRevision = revisionCollection.FindOne(r => r.RevisionId == revisionId && r.SourceId == sourceId);
+            if (existingRevision == null)
+            {
+                revisionCollection.Insert(new RevisionRecord(ObjectId.NewObjectId(), sourceId, revisionId,
+                    definitions.Select(d => new RevisionDefinitionRecord(d.DefinitionId, d.Version)).ToArray()));
+            }
+            else
+            {
+                if (SameRevisionDefinitions(existingRevision.Definitions, definitions))
+                    return;
 
-            revisionCollection.Insert(new RevisionRecord(ObjectId.NewObjectId(), sourceId, revisionId, 
-                definitions.Select(d => new RevisionDefinitionRecord(d.DefinitionId, d.Version)).ToArray()));
+                revisionCollection.Update(new RevisionRecord(existingRevision.Id, sourceId, revisionId,
+                    definitions.Select(d => new RevisionDefinitionRecord(d.DefinitionId, d.Version)).ToArray()));
+            }
+        }
+
+
+        private static bool SameRevisionDefinitions(IEnumerable<RevisionDefinitionRecord> existingDefinitions, IEnumerable<RevisionDefinition> definitions)
+        {
+            var existingLookup = existingDefinitions.ToDictionary(d => d.DefinitionId, d => d.Version);
+
+            foreach (var definition in definitions)
+            {
+                if (!existingLookup.Remove(definition.DefinitionId, out var existingVersion))
+                    return false;
+
+                if (existingVersion != definition.Version)
+                    return false;
+            }
+
+            return existingLookup.Count == 0;
         }
 
 

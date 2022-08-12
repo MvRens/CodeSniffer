@@ -6,6 +6,11 @@
     public enum CsReportResult
     {
         /// <summary>
+        /// The scan was skipped.
+        /// </summary>
+        Skipped,
+
+        /// <summary>
         /// The scan was a success and there are no issues to report.
         /// </summary>
         Success,

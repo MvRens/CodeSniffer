@@ -11,7 +11,8 @@ import
   faRectangleXmark, 
   faBug,
   faAngleDown,
-  faAngleUp
+  faAngleUp,
+  faBan
 } from '@fortawesome/free-solid-svg-icons'
 
 import App from './App.vue';
@@ -25,7 +26,8 @@ library.add(
   faRectangleXmark, 
   faBug,
   faAngleDown,
-  faAngleUp
+  faAngleUp,
+  faBan
 );
 
 

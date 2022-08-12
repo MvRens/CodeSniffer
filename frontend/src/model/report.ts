@@ -1,9 +1,10 @@
 export enum ReportResult
 {
-  Success = 0,
-  Warning = 1,
-  Critical = 2,
-  Error = 3
+  Skipped = 0,
+  Success = 1,
+  Warning = 2,
+  Critical = 3,
+  Error = 4
 }
 
 
