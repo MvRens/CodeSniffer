@@ -1,18 +1,19 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router';
 import { useLogin } from '../store/login';
 
-import EmptyRoute from '../views/EmptyRoute.vue';
-import Dashboard from '../views/Dashboard.vue';
-import Login from '../views/Login.vue';
-import Logout from '../views/Logout.vue';
-import Report from '../views/Report.vue';
-import Definitions from '../views/Definitions.vue';
-import Definition from '../views/Definition.vue';
-import Sources from '../views/Sources.vue';
-import Source from '../views/Source.vue';
-import SourceGroup from '../views/SourceGroup.vue';
-import Users from '../views/Users.vue';
-import User from '../views/User.vue';
+import EmptyRoute from '@/views/EmptyRoute.vue';
+import Dashboard from '@/views/Dashboard.vue';
+import Login from '@/views/Login.vue';
+import Logout from '@/views/Logout.vue';
+import Report from '@/views/Report.vue';
+import Definitions from '@/views/Definitions.vue';
+import Definition from '@/views/Definition.vue';
+import Sources from '@/views/Sources.vue';
+import Source from '@/views/Source.vue';
+import SourceGroup from '@/views/SourceGroup.vue';
+import Users from '@/views/Users.vue';
+import User from '@/views/User.vue';
+import Status from '@/views/Status.vue';
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -137,7 +138,14 @@ const routes: Array<RouteRecordRaw> = [
         props: true
       }
     ]
-  },];
+  },
+
+  {
+    path: '/status',
+    name: 'Status',
+    component: Status
+  }
+];
 
 const router = createRouter({
   history: createWebHistory('/'),

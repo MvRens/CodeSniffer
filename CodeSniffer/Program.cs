@@ -186,6 +186,7 @@ namespace CodeSniffer
             container.Register<IConfigurationFacade, ConfigurationFacade>();
             container.RegisterSingleton<IRepositoryMonitor, RepositoryMonitor>();
             container.RegisterSingleton<IJobRunner, JobRunner>();
+            container.RegisterSingleton<IJobMonitor, JobMonitor>();
             container.RegisterSingleton<IReportFacade, ReportFacade>();
 
             return container;

@@ -1665,6 +1665,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/ace@npm:*":
+  version: 0.0.48
+  resolution: "@types/ace@npm:0.0.48"
+  checksum: 99225e6a7b9d91f11c6abe7641dc7d80d21af28a14701819241a9697fd80a696db83df6e2afa87dfccdf2fdbc93ee07b56f6056e9022cbc4e9f9db316fbda79a
+  languageName: node
+  linkType: hard
+
 "@types/awesome-notifications@npm:^3.1.1":
   version: 3.1.1
   resolution: "@types/awesome-notifications@npm:3.1.1"
@@ -1816,6 +1823,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/jsoneditor@npm:^9.5.1":
+  version: 9.5.1
+  resolution: "@types/jsoneditor@npm:9.5.1"
+  dependencies:
+    "@types/ace": "*"
+    ajv: ^6.12.0
+  checksum: 517266af1ca2b5239066e371bccf8ef66738f1ff11d58545cb00598db5a7bff688ae12bc13d1cabead6a271971be18a70b50a6b5863b3acaa8b2bf3e6f18fcb7
+  languageName: node
+  linkType: hard
+
 "@types/keyv@npm:*":
   version: 3.1.4
   resolution: "@types/keyv@npm:3.1.4"
@@ -1838,6 +1855,13 @@ __metadata:
   version: 4.14.180
   resolution: "@types/lodash@npm:4.14.180"
   checksum: fc42ae3473695cac6e91553f832fef8eb51a31c1c0381cafa81b00dc3efe18e279786bdda77caf0b90a8340ba2ba7aa46ae6541d69870565f775d04c89128bc1
+  languageName: node
+  linkType: hard
+
+"@types/luxon@npm:^3.0.0":
+  version: 3.0.0
+  resolution: "@types/luxon@npm:3.0.0"
+  checksum: 7738d3f4b91097a8139eca966ab53c6b40bb417b2cc2014c3bbd0aee033d6ff54af14c62046c2eb042434923b6bf796874f24b2af90e07ef422e6d841463d4b2
   languageName: node
   linkType: hard
 
@@ -2910,7 +2934,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ajv@npm:^6.12.2, ajv@npm:^6.12.4, ajv@npm:^6.12.5, ajv@npm:^6.12.6":
+"ajv@npm:^6.12.0, ajv@npm:^6.12.2, ajv@npm:^6.12.4, ajv@npm:^6.12.5, ajv@npm:^6.12.6":
   version: 6.12.6
   resolution: "ajv@npm:6.12.6"
   dependencies:
@@ -4902,7 +4926,9 @@ __metadata:
     "@intlify/vue-i18n-loader": ^4.2.0
     "@types/awesome-notifications": ^3.1.1
     "@types/js-cookie": ^3.0.2
+    "@types/jsoneditor": ^9.5.1
     "@types/lodash-es": ^4.17.6
+    "@types/luxon": ^3.0.0
     "@types/vue-select": ^3.16.0
     "@vue/cli-plugin-babel": ^5.0.8
     "@vue/cli-plugin-router": ^5.0.8
@@ -4918,6 +4944,7 @@ __metadata:
     js-cookie: ^3.0.1
     jsoneditor: ^9.9.0
     lodash-es: ^4.17.21
+    luxon: ^3.0.1
     regenerator-runtime: ^0.13.9
     sass: ^1.53.0
     sass-loader: ^12.6.0
@@ -6214,6 +6241,13 @@ __metadata:
   version: 7.7.1
   resolution: "lru-cache@npm:7.7.1"
   checksum: f362c5a2cfa8ad6fe557ec43dc1b7a9695cce84a5652a43ff813609f782f5da576631e7dfad41878bf19a7a69438f38375178635ee80de269aa314280ca2f59e
+  languageName: node
+  linkType: hard
+
+"luxon@npm:^3.0.1":
+  version: 3.0.1
+  resolution: "luxon@npm:3.0.1"
+  checksum: aa966eb919bf95b1bd819cda784d1f6f66e3fb65bd9ec7bf68b6a978eeb4e3e14f7e2275021b473f93b15b6b7ba2e5a30471e53add3929a7e695fcfd6dd40ec8
   languageName: node
   linkType: hard
 

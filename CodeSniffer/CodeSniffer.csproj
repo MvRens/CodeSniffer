@@ -25,6 +25,7 @@
     <PackageReference Include="SimpleInjector.Integration.AspNetCore" Version="5.3.0" />
     <PackageReference Include="SimpleInjector.Integration.AspNetCore.Mvc.Core" Version="5.3.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.3.0" />
+    <PackageReference Include="System.Linq.Async" Version="6.0.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -38,5 +39,20 @@
     <ProjectReference Include="..\CodeSniffer.Core\CodeSniffer.Core.csproj" />
     <ProjectReference Include="..\CodeSniffer.Repository.LiteDB\CodeSniffer.Repository.LiteDB.csproj" />
     <ProjectReference Include="..\CodeSniffer.Repository\CodeSniffer.Repository.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Sniffer\Strings.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Strings.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Sniffer\Strings.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Strings.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
   </ItemGroup>
 </Project>

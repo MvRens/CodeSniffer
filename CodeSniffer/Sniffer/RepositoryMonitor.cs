@@ -16,6 +16,7 @@ using Serilog;
 using Serilog.Events;
 
 // TODO keep track of scanning jobs and their logs for frontend monitoring purposes
+// TODO scan for active branches to clean up every once in a while
 
 namespace CodeSniffer.Sniffer
 {
@@ -27,6 +28,7 @@ namespace CodeSniffer.Sniffer
         private readonly IReportFacade reportFacade;
         private readonly IJobRunner jobRunner;
         private readonly AppSettings appSettings;
+        private readonly IJobMonitor jobMonitor;
         private static readonly TimeSpan MinimumInterval = TimeSpan.FromMinutes(1);
 
         private readonly TimeSpan scanInterval;
@@ -34,7 +36,7 @@ namespace CodeSniffer.Sniffer
         private readonly CancellationTokenSource cancellationTokenSource = new();
         private Task? monitorTask;
 
-        private readonly ConcurrentDictionary<string, ICsSourceCodeRepository> cachedSources = new();
+        private readonly ConcurrentDictionary<string, CachedSource> cachedSources = new();
         private readonly ConcurrentDictionary<string, IReadOnlyList<string>> cachedSourceGroups = new();
         private readonly ConcurrentDictionary<string, DefinitionInfo> cachedDefinitions = new();
 
@@ -43,7 +45,7 @@ namespace CodeSniffer.Sniffer
 
 
         public RepositoryMonitor(ILogger logger, IPluginManager pluginManager, ISourceCodeStatusRepository sourceCodeStatusRepository,
-            IReportFacade reportFacade, IJobRunner jobRunner, AppSettings appSettings)
+            IReportFacade reportFacade, IJobRunner jobRunner, AppSettings appSettings, IJobMonitor jobMonitor)
         {
             this.logger = logger;
             this.pluginManager = pluginManager;
@@ -51,6 +53,7 @@ namespace CodeSniffer.Sniffer
             this.reportFacade = reportFacade;
             this.jobRunner = jobRunner;
             this.appSettings = appSettings;
+            this.jobMonitor = jobMonitor;
 
             var settingsInterval = TimeSpan.FromMinutes(appSettings.ScanInterval);
             scanInterval = settingsInterval >= MinimumInterval ? settingsInterval : MinimumInterval;
@@ -76,7 +79,7 @@ namespace CodeSniffer.Sniffer
             {
                 var sourceCodeRepository = GetSourceCodeRepository(source);
                 if (sourceCodeRepository != null)
-                    cachedSources.TryAdd(source.Id, sourceCodeRepository);
+                    cachedSources.TryAdd(source.Id, new CachedSource(source.Name, sourceCodeRepository));
             }
 
             foreach (var sourceGroup in sourceGroups)
@@ -109,7 +112,10 @@ namespace CodeSniffer.Sniffer
         {
             var sourceCodeRepository = GetSourceCodeRepository(newSource);
             if (sourceCodeRepository != null)
-                cachedSources.AddOrUpdate(id, sourceCodeRepository, (_, _) => sourceCodeRepository);
+            {
+                var source = new CachedSource(newSource.Name, sourceCodeRepository);
+                cachedSources.AddOrUpdate(id, source, (_, _) => source);
+            }
 
             cachedGroupedRepositoriesInvalidated = true;
         }
@@ -152,14 +158,16 @@ namespace CodeSniffer.Sniffer
                     },
                     async (groupedRepository, _) =>
                     {
+                        using var checkRevisionsJob = jobMonitor.Start(logger, JobType.CheckRevisions, string.Format(Strings.JobNameScan, groupedRepository.Source.Name));
                         try
                         {
-                            var newRevisions = await Scan(groupedRepository.SourceId, groupedRepository.Repository, groupedRepository.Definitions, cancellationToken);
+                            var newRevisions = await Scan(checkRevisionsJob, groupedRepository.SourceId, groupedRepository.Source.Repository, groupedRepository.Definitions, cancellationToken);
                             Interlocked.Add(ref totalNewRevisions, newRevisions);
                         }
                         catch (Exception e)
                         {
-                            logger.Error(e, "Error while scanning source Id {sourceId}: {errorMessage}", groupedRepository.SourceId, e.Message);
+                            checkRevisionsJob.Logger.Error(e, "Error while scanning source Id {sourceId}: {errorMessage}", groupedRepository.SourceId, e.Message);
+                            checkRevisionsJob.SetStatus(JobStatus.Error);
                         }
                     });
                 
@@ -189,8 +197,8 @@ namespace CodeSniffer.Sniffer
 
                 foreach (var sourceId in groupSourceIds)
                 {
-                    if (cachedSources.TryGetValue(sourceId, out var sourceCodeRepository))
-                        yield return new UngroupedRepository(definitionId, sourceId, sourceCodeRepository);
+                    if (cachedSources.TryGetValue(sourceId, out var cachedSource))
+                        yield return new UngroupedRepository(definitionId, sourceId, cachedSource);
                 }
             }
 
@@ -201,7 +209,7 @@ namespace CodeSniffer.Sniffer
                 .Select(g =>
                 {
                     var first = g.First();
-                    return new GroupedRepository(first.SourceId, first.Repository, g.Select(d => cachedDefinitions[d.DefinitionId]).ToList());
+                    return new GroupedRepository(first.SourceId, first.Source, g.Select(d => cachedDefinitions[d.DefinitionId]).ToList());
                 })
                 .ToList();
 
@@ -209,21 +217,26 @@ namespace CodeSniffer.Sniffer
         }
 
 
-        private async ValueTask<int> Scan(string sourceId, ICsSourceCodeRepository sourceCodeRepository, IReadOnlyList<DefinitionInfo> definitions, CancellationToken cancellationToken)
+        private async ValueTask<int> Scan(IRunningJob checkRevisionsJob, string sourceId, ICsSourceCodeRepository sourceCodeRepository, IReadOnlyList<DefinitionInfo> definitions, CancellationToken cancellationToken)
         {
-            logger.Debug("Scanning source Id {sourceId} for new revisions", sourceId);
             var newRevisions = 0;
+            checkRevisionsJob.Logger.Debug("Scanning source Id {sourceId} for new revisions", sourceId);
 
-            await foreach (var revision in sourceCodeRepository.GetRevisions(cancellationToken))
+            var revisions = await sourceCodeRepository.GetRevisions(cancellationToken).ToListAsync(cancellationToken);
+
+            for (var revisionIndex = 0; revisionIndex < revisions.Count; revisionIndex++)
             {
-                if (await SkipRevision(sourceId, revision.Name, revision.Id, definitions))
+                checkRevisionsJob.SetProgress(revisionIndex, revisions.Count);
+                var revision = revisions[revisionIndex];
+
+                if (await SkipRevision(checkRevisionsJob.Logger, sourceId, revision.Name, revision.Id, definitions))
                     continue;
 
                 var workingCopyPath = GetUniquePath(appSettings.CheckoutPath, GetSafeFilename(sourceId + '.' + revision.Id));
-                logger.Information("Checking out working copy at {workingCopyPath}", workingCopyPath);
+                checkRevisionsJob.Logger.Information("Checking out working copy at {workingCopyPath}", workingCopyPath);
                 await sourceCodeRepository.Checkout(revision, workingCopyPath);
 
-                logger.Information("Running scan jobs on {workingCopyPath}", workingCopyPath);
+                checkRevisionsJob.Logger.Information("Running scan jobs on {workingCopyPath}", workingCopyPath);
                 foreach (var definitionInfo in definitions)
                 {
                     var result = await jobRunner.Execute(definitionInfo.DefinitionId, workingCopyPath, cancellationToken);
@@ -239,27 +252,28 @@ namespace CodeSniffer.Sniffer
 
                 try
                 {
-                    logger.Debug("Removing working copy at {workingCopyPath}", workingCopyPath);
+                    checkRevisionsJob.Logger.Debug("Removing working copy at {workingCopyPath}", workingCopyPath);
                     Directory.Delete(workingCopyPath, true);
                 }
                 catch (Exception e)
                 {
-                    logger.Warning(e, "Failed to remove working copy path {workingCopyPath}", workingCopyPath);
+                    checkRevisionsJob.Logger.Warning(e, "Failed to remove working copy path {workingCopyPath}", workingCopyPath);
                 }
             }
 
+            checkRevisionsJob.SetProgress(revisions.Count, revisions.Count);
             return newRevisions;
         }
 
 
-        private async ValueTask<bool> SkipRevision(string sourceId, string revisionName, string revisionId, IEnumerable<DefinitionInfo> definitions)
+        private async ValueTask<bool> SkipRevision(ILogger jobLog, string sourceId, string revisionName, string revisionId, IEnumerable<DefinitionInfo> definitions)
         {
             var revisionDefinitions = (await sourceCodeStatusRepository.GetRevisionDefinitions(sourceId, revisionId))
                 .ToDictionary(p => p.DefinitionId, p => p.Version);
 
             if (revisionDefinitions.Count == 0)
             {
-                logger.Information("Found new revision {revisionName} for source code repository {sourceId}", revisionName, sourceId);
+                jobLog.Information("Found new revision {revisionName} for source code source {sourceId}", revisionName, sourceId);
                 return false;
             }
 
@@ -267,17 +281,21 @@ namespace CodeSniffer.Sniffer
             {
                 if (!revisionDefinitions.TryGetValue(definitionInfo.DefinitionId, out var scannedVersion))
                 {
-                    logger.Debug("Previously scanned revision {revisionName} for source code repository {sourceId} not yet scanned by definition {definitionId}, scanning again", 
+                    jobLog.Debug("Previously scanned revision {revisionName} for source code source {sourceId} not yet scanned by definition {definitionId}, scanning again", 
                         revisionName, sourceId, definitionInfo.DefinitionId);
                     return false;
                 }
 
-                if (scannedVersion == definitionInfo.Version) 
-                    continue;
+                if (scannedVersion != definitionInfo.Version)
+                {
+                    jobLog.Debug(
+                        "Previously scanned revision {revisionName} for source code source {sourceId} was scanned by an older version of definition {definitionId}, scanning again",
+                        revisionName, sourceId, definitionInfo.DefinitionId);
+                    return false;
+                }
 
-                logger.Debug("Previously scanned revision {revisionName} for source code repository {sourceId} was scanned by an older version of definition {definitionId}, scanning again",
-                    revisionName, sourceId, definitionInfo.DefinitionId);
-                return false;
+                jobLog.Debug("Previously scanned revision {revisionName} for source code source {sourceId} already scanned by the same version of {definitionId}",
+                        revisionName, sourceId, definitionInfo.DefinitionId);
             }
 
             // All definitions were scanned using the same version. Definitions may have been removed, but
@@ -328,17 +346,30 @@ namespace CodeSniffer.Sniffer
         }
 
 
+        private class CachedSource
+        {
+            public string Name { get; }
+            public ICsSourceCodeRepository Repository { get; }
+
+
+            public CachedSource(string name, ICsSourceCodeRepository repository)
+            {
+                Name = name;
+                Repository = repository;
+            }
+        }
+
         private class GroupedRepository
         {
             public string SourceId { get; }
-            public ICsSourceCodeRepository Repository { get; }
+            public CachedSource Source { get; }
             public IReadOnlyList<DefinitionInfo> Definitions { get; }
 
 
-            public GroupedRepository(string sourceId, ICsSourceCodeRepository repository, IReadOnlyList<DefinitionInfo> definitions)
+            public GroupedRepository(string sourceId, CachedSource source, IReadOnlyList<DefinitionInfo> definitions)
             {
                 SourceId = sourceId;
-                Repository = repository;
+                Source = source;
                 Definitions = definitions;
             }
         }
@@ -348,14 +379,14 @@ namespace CodeSniffer.Sniffer
         {
             public string DefinitionId { get; }
             public string SourceId { get; }
-            public ICsSourceCodeRepository Repository { get; }
+            public CachedSource Source { get; }
 
 
-            public UngroupedRepository(string definitionId, string sourceId, ICsSourceCodeRepository repository)
+            public UngroupedRepository(string definitionId, string sourceId, CachedSource source)
             {
                 DefinitionId = definitionId;
                 SourceId = sourceId;
-                Repository = repository;
+                Source = source;
             }
         }
 

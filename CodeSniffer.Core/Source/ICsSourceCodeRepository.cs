@@ -15,7 +15,10 @@
         IAsyncEnumerable<ICsSourceCodeRevision> GetRevisions(CancellationToken cancellationToken);
 
 
-        // TODO support checking of active branches, for cleaning up reports
+        /// <summary>
+        /// Queries the source code repository for active branches, for cleanup purposes.
+        /// </summary>
+        IAsyncEnumerable<string> GetActiveBranches(CancellationToken cancellationToken);
 
 
         /// <summary>

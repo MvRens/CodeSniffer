@@ -1,5 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-using CodeSniffer.Core.Source;
+﻿using CodeSniffer.Core.Source;
 using LibGit2Sharp;
 using LibGit2Sharp.Handlers;
 using Serilog;
@@ -19,23 +18,47 @@ namespace CodeSniffer.SourceCodeRepository.Git
         }
 
 
+        public IAsyncEnumerable<ICsSourceCodeRevision> GetRevisions(CancellationToken cancellationToken)
+        {
+            return GetRemoteBranches()
+                .Select(r =>
+                {
+                    var sha = r.ResolveToDirectReference().TargetIdentifier;
+                    return new GitCsSourceCodeRevision(sha, GetBranchName(r));
+                })
+                .ToAsyncEnumerable();
+        }
+
+
+        public IAsyncEnumerable<string> GetActiveBranches(CancellationToken cancellationToken)
+        {
+            return GetRemoteBranches()
+                .Select(GetBranchName)
+                .ToAsyncEnumerable();
+        }
+
+
+        private IEnumerable<Reference> GetRemoteBranches()
+        {
+            logger.Debug("Listing remote references for url {url}", options.Url);
+
+            var references = Repository.ListRemoteReferences(options.Url, GetCredentialsProvider(options));
+            return references.Where(IsBranch);
+        }
+
+
         private const string BranchNamePrefix = @"refs/heads/";
 
 
-        public async IAsyncEnumerable<ICsSourceCodeRevision> GetRevisions([EnumeratorCancellation] CancellationToken cancellationToken)
+        private static bool IsBranch(Reference reference)
         {
-            logger.Debug("Listing remote reference for url {url}", options.Url);
+            return reference.IsLocalBranch && reference.CanonicalName.StartsWith(BranchNamePrefix);
+        }
 
-            var references = Repository.ListRemoteReferences(options.Url, GetCredentialsProvider(options));
-            foreach (var reference in references.Where(r => r.IsLocalBranch && r.CanonicalName.StartsWith(BranchNamePrefix)))
-            {
-                var branchName = reference.CanonicalName[BranchNamePrefix.Length..];
-                var sha = reference.ResolveToDirectReference().TargetIdentifier;
 
-                yield return new GitCsSourceCodeRevision(sha, branchName);
-            }
-
-            await Task.CompletedTask;
+        private static string GetBranchName(Reference reference)
+        {
+            return reference.CanonicalName[BranchNamePrefix.Length..];
         }
 
 

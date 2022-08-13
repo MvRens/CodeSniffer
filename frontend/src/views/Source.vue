@@ -23,8 +23,8 @@
           <option v-for="option in sourcePluginOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
         </select>
 
-        <label for="sourceConfiguration">{{ t('configuration') }}</label>
-        <textarea class="u-full-width configuration" type="text" id="sourceConfiguration" v-model="configuration" />
+        <label>{{ t('configuration') }}</label>
+        <ConfigurationEditor v-model="configuration" />
 
         <div v-if="!!sourceOptionsHelp" v-html="sourceOptionsHelp" class="plugin-help"></div>
       </div>
@@ -72,6 +72,7 @@ import { useNotifications } from '@/lib/notifications';
 import { SourceAPIModel } from '@/model/source';
 import router from '@/router';
 import { PluginAPIModel } from '@/model/definition';
+import ConfigurationEditor from '@/components/ConfigurationEditor.vue';
 
 
 interface PluginSelectOption
@@ -227,12 +228,3 @@ const sourceOptionsHelp = computed<string | undefined>(() =>
   return plugin?.optionsHelp;
 });
 </script>
-
-<style lang="scss" scoped>
-.configuration
-{
-  height: 20em;
-  resize: vertical;
-  font-family: 'Courier New', Courier, monospace;
-}
-</style>

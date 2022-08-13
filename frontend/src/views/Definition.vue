@@ -44,8 +44,8 @@
                 <option v-for="option in checkPluginOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
               </select>
 
-              <label for="checkConfiguration">{{ t('configuration') }}</label>
-              <textarea class="u-full-width configuration" type="text" id="checkConfiguration" v-model="check.configuration" />
+              <label>{{ t('configuration') }}</label>
+              <ConfigurationEditor v-model="check.configuration" />
 
               <div v-if="!!checkOptionsHelp" v-html="checkOptionsHelp" class="plugin-help"></div>
 
@@ -111,6 +111,7 @@ import { useNotifications } from '@/lib/notifications';
 import { DefinitionCheckAPIModel, DefinitionAPIModel, PluginAPIModel } from '@/model/definition';
 import { ListSourceGroupAPIModel } from '@/model/source';
 import router from '@/router';
+import ConfigurationEditor from '@/components/ConfigurationEditor.vue';
 
 
 interface PluginSelectOption
@@ -368,13 +369,5 @@ const checkOptionsHelp = computed<string | undefined>(() =>
   {
     grid-column: 1 / span 3;
   }
-}
-
-
-.configuration
-{
-  height: 20em;
-  resize: vertical;
-  font-family: 'Courier New', Courier, monospace;
 }
 </style>

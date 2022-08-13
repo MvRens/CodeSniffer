@@ -4,6 +4,7 @@
       <router-link :to="{ name: 'Dashboard' }">{{ t('menu.dashboard') }}</router-link>
       <router-link :to="{ name: 'Definitions' }">{{ t('menu.definitions') }}</router-link>
       <router-link :to="{ name: 'Sources' }">{{ t('menu.sources') }}</router-link>
+      <router-link :to="{ name: 'Status' }">{{ t('menu.status') }}</router-link>
       <router-link :to="{ name: 'Users' }" v-if="isAdmin">{{ t('menu.users') }}</router-link>
       <router-link :to="{ name: 'Logout' }" class="logout">{{ t('menu.logout') }}</router-link>
     </div>
@@ -19,6 +20,7 @@ en:
     definitions: "Scan jobs"
     sources: "Sources"
     users: "Users"
+    status: "Status"
     logout: "Logout"
 </i18n>
 

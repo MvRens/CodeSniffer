@@ -13,41 +13,46 @@ namespace CodeSniffer.Sniffer
         private readonly ILogger logger;
         private readonly IDefinitionRepository definitionRepository;
         private readonly IPluginManager pluginManager;
+        private readonly IJobMonitor jobMonitor;
 
 
         private static readonly ICsReport EmptyReport = CsReportBuilder.Create().Build();
 
 
-        public JobRunner(ILogger logger, IDefinitionRepository definitionRepository, IPluginManager pluginManager)
+        public JobRunner(ILogger logger, IDefinitionRepository definitionRepository, IPluginManager pluginManager, IJobMonitor jobMonitor)
         {
             this.logger = logger;
             this.definitionRepository = definitionRepository;
             this.pluginManager = pluginManager;
+            this.jobMonitor = jobMonitor;
         }
 
 
         public async ValueTask<ICsJobResult> Execute(string definitionId, string workingCopyPath, CancellationToken cancellationToken)
         {
-            var jobLogger = logger.ForContext("DefinitionId", definitionId);
+            var runningJob = jobMonitor.Start(logger.ForContext("DefinitionId", definitionId), JobType.Scan, "TODO job name (include definition name?)");
 
-            jobLogger.Verbose("Starting job on working copy path {workingCopyPath}", workingCopyPath);
+            runningJob.Logger.Verbose("Starting job on working copy path {workingCopyPath}", workingCopyPath);
             var definition = await definitionRepository.GetDetails(definitionId);
             var checkReports = new List<CsJobCheck>();
 
-            foreach (var check in definition.Checks)
+            for (var checkIndex = 0; checkIndex < definition.Checks.Count; checkIndex++)
             {
-                logger.Debug("Constructing plugin {pluginId} for check {checkName}", check.PluginId, check.Name);
+                runningJob.SetProgress(checkIndex, definition.Checks.Count);
+
+                var check = definition.Checks[checkIndex];
+                runningJob.Logger.Debug("Constructing plugin {pluginId} for check {checkName}", check.PluginId, check.Name);
 
                 if (pluginManager.ById(check.PluginId)?.Plugin is ICsSnifferPlugin plugin)
                 {
-                    var sniffer = plugin.Create(jobLogger, check.Configuration);
+                    var sniffer = plugin.Create(runningJob.Logger, check.Configuration);
                     var report = await sniffer.Execute(workingCopyPath, cancellationToken);
 
                     checkReports.Add(new CsJobCheck(check.PluginId, check.Name, report ?? EmptyReport));
                 }
                 else
                 {
-                    logger.Error("Not a valid sniffer plugin: {pluginId}", check.PluginId);
+                    runningJob.Logger.Error("Not a valid sniffer plugin: {pluginId}", check.PluginId);
 
                     checkReports.Add(new CsJobCheck(
                         check.PluginId,
@@ -60,7 +65,7 @@ namespace CodeSniffer.Sniffer
                 }
             }
 
-
+            runningJob.SetProgress(definition.Checks.Count, definition.Checks.Count);
             return new CsJobResult(checkReports);
         }
 
