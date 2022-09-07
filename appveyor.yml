@@ -10,6 +10,10 @@ before_build:
 
 environment:
   pack_params: -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output -p:Configuration=Release -p:ContinuousIntegrationBuild=true
+  DOCKER_USER:
+    secure: zaGU9KFceZBkf9iqB5Gg/e2LW2CHZgVNFJ0Au9Dnwmo=
+  DOCKER_PASS:
+    secure: ol+rFY/8BLif5lS4b/KgKvru8mjwXcaddaVkDkfXJAU=
 
 after_build:
   # Create NuGet packages
@@ -17,8 +21,11 @@ after_build:
   # Push artifacts
   - ps: Get-ChildItem output\*.nupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
   - ps: Get-ChildItem output\*.snupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
-
-  # TODO push binaries to GitHub for release builds
+  # Build and push Docker image
+  - docker build -t mvrens/codesniffer:%GitVersion_NuGetVersion% -f CodeSniffer\bin\Release\net6.0\DockerFile .
+  - docker login -u="$env:DOCKER_USER" -p="$env:DOCKER_PASS"
+  - docker push mvrens/codesniffer:%GitVersion_NuGetVersion%"
+  - docker logout
 
 build:
   project: CodeSniffer.sln
