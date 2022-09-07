@@ -7,6 +7,8 @@ install:
 before_build:
   - gitversion /l console /output buildserver
   - nuget restore
+  - echo %DOCKER_USER%
+  - echo %DOCKER_PASS%
 
 environment:
   pack_params: -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output -p:Configuration=Release -p:ContinuousIntegrationBuild=true
