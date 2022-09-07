@@ -21,10 +21,14 @@ after_build:
   - ps: Get-ChildItem output\*.nupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
   - ps: Get-ChildItem output\*.snupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
   # Build and push Docker image
-  - ps: docker build -t mvrens/codesniffer:$env:GitVersion_NuGetVersion -f CodeSniffer\bin\Release\net6.0\DockerFile .
-  - ps: Write-Output $env:DOCKER_PASS | docker login -u="$env:DOCKER_USER" --password-stdin
-  - ps: docker push mvrens/codesniffer:$env:GitVersion_NuGetVersion
-  - ps: docker logout
+  - ps: |
+        Push-Location CodeSniffer\bin\Release\net6.0\
+        docker build -t mvrens/codesniffer:$env:GitVersion_NuGetVersion .
+        Write-Output $env:DOCKER_PASS | docker login -u="$env:DOCKER_USER" --password-stdin
+        docker push mvrens/codesniffer:$env:GitVersion_NuGetVersion
+        docker logout
+        Pop-Location
+  # TODO tag master builds as "latest"
 
 build:
   project: CodeSniffer.sln
