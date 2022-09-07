@@ -10,8 +10,7 @@ before_build:
 
 environment:
   pack_params: -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output -p:Configuration=Release -p:ContinuousIntegrationBuild=true
-  DOCKER_USER:
-    secure: zaGU9KFceZBkf9iqB5Gg/e2LW2CHZgVNFJ0Au9Dnwmo=
+  DOCKER_USER: mvrens
   DOCKER_PASS:
     secure: ol+rFY/8BLif5lS4b/KgKvru8mjwXcaddaVkDkfXJAU=
 
