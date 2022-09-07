@@ -1,0 +1,16 @@
+﻿services:
+  backend:
+    image: mvrens/codesniffer
+    ports:
+      - "7042:7042"
+    volumes:
+      - type: volume
+        source: data
+        target: /var/lib/codesniffer
+      - type: bind
+        source: /etc/codesniffer
+        target: /etc/codesniffer
+    environment:
+        APPSETTINGS: /etc/codesniffer/appsettings.json
+volumes:
+  data:

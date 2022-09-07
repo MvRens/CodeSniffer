@@ -1,6 +1,19 @@
 image: Visual Studio 2022
 
 
+environment:
+  pack_params: -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output -p:Configuration=Release -p:ContinuousIntegrationBuild=true
+  DOCKER_USER: mvrens
+  DOCKER_PASS:
+    secure: OzXCaIRFu2JkvLlPAeHHM01yrDeFKQys3oZAeYe3q4Fp8Uqa4XTz/kCnq8fz9ceW
+
+platform:
+  - Any CPU
+
+configuration:
+  - Release
+
+
 install:
   - choco install gitversion.portable -pre -y
 
@@ -8,18 +21,27 @@ before_build:
   - gitversion /l console /output buildserver
   - nuget restore
 
-environment:
-  pack_params: -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output -p:Configuration=Release -p:ContinuousIntegrationBuild=true
-  DOCKER_USER: mvrens
-  DOCKER_PASS:
-    secure: OzXCaIRFu2JkvLlPAeHHM01yrDeFKQys3oZAeYe3q4Fp8Uqa4XTz/kCnq8fz9ceW
+build:
+  project: CodeSniffer.sln
 
 after_build:
+  # Build frontend
+  - ps: |
+        Push-Location frontend
+
+        yarn install
+        yarn build
+
+        Pop-Location
+
   # Create NuGet packages
   - dotnet pack CodeSniffer.Core\CodeSniffer.Core.csproj %pack_params% -p:Version=%GitVersion_NuGetVersion%
+
   # Push artifacts
-  - ps: Get-ChildItem output\*.nupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
-  - ps: Get-ChildItem output\*.snupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
+  - ps: |
+        Get-ChildItem output\*.nupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
+        Get-ChildItem output\*.snupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
+
   # Build and push Docker image
   - ps: |
         Push-Location CodeSniffer\bin\Release\net6.0\
@@ -38,16 +60,6 @@ after_build:
         docker logout
 
         Pop-Location
-  # TODO tag master builds as "latest"
-
-build:
-  project: CodeSniffer.sln
-
-platform:
-  - Any CPU
-
-configuration:
-  - Release
 
 deploy:
   - provider: NuGet
