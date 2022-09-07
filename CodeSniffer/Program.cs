@@ -24,6 +24,7 @@ using SimpleInjector;
 using SimpleInjector.Lifestyles;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Serilog.Events;
 
 [assembly:ApiController]
@@ -123,12 +124,13 @@ namespace CodeSniffer
 
         private static AppSettings LoadAppSettings()
         {
-            var appSettings = new AppSettings();
+            var appSettingsFilename = Environment.GetEnvironmentVariable("APPSETTINGS") ?? AppSettings.DefaultFilename();
 
-            // TODO MUSTHAVE check environment for appsettings file location or default to the application path
-            // TODO MUSTHAVE load from file
+            var configuration = new ConfigurationBuilder()
+                .AddJsonFile(appSettingsFilename, true)
+                .Build();
 
-            return appSettings;
+            return configuration.Get<AppSettings>() ?? new AppSettings();
         }
 
 

@@ -23,10 +23,20 @@ after_build:
   # Build and push Docker image
   - ps: |
         Push-Location CodeSniffer\bin\Release\net6.0\
-        docker build -t mvrens/codesniffer:$env:GitVersion_NuGetVersion .
+
+        $branchTag = $env:GitVersion_BranchName
+        if ($branchTag -eq "master")
+        {
+          $branchTag = "latest"
+        }
+
+        docker build -t mvrens/codesniffer:$env:GitVersion_NuGetVersion -t mvrens/codesniffer:$branchTag .
+
         Write-Output $env:DOCKER_PASS | docker login -u="$env:DOCKER_USER" --password-stdin
         docker push mvrens/codesniffer:$env:GitVersion_NuGetVersion
+        docker push mvrens/codesniffer:$branchTag
         docker logout
+
         Pop-Location
   # TODO tag master builds as "latest"
 

@@ -58,6 +58,12 @@ namespace CodeSniffer.Plugins
         {
             logger.Debug("Scanning path {path} for plugins", path);
 
+            if (!Directory.Exists(path))
+            {
+                logger.Warning("Plugin path {path} does not exist, skipping", path);
+                return;
+            }
+
             foreach (var manifestFilename in Directory.GetFiles(path, "csplugin.json", SearchOption.AllDirectories))
                 LoadPlugin(manifestFilename);
         }

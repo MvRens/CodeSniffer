@@ -38,6 +38,14 @@ namespace CodeSniffer
             DbConnectionString = Path.Combine(appDataPath, p(@"CodeSniffer.litedb"));
             CheckoutPath = Path.Combine(Path.GetTempPath(), p(@"CodeSniffer"));
         }
+
+
+        public static string DefaultFilename()
+        {
+            return RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), @"CodeSniffer", @"appsettings.json")
+                : @"/etc/codesniffer/appsettings.json";
+        }
     }
 
 

@@ -32,9 +32,9 @@ namespace CodeSniffer
             logger.Information("Service starting...");
 
 
-
             // For mock purposes
             // ------
+            /*
             var pluginManager = container.GetInstance<IPluginManager>();
             var sourceRepository = container.GetInstance<ISourceRepository>();
             var definitionRepository = container.GetInstance<IDefinitionRepository>();
@@ -62,16 +62,20 @@ namespace CodeSniffer
                         "Mock");
 
 
-                await definitionRepository.Insert(new CsDefinition(
-                    ".NET version",
-                    sourceGroupId,
-                    new[]
-                    {
-                        new CsDefinitionCheck("Obsolete versions", dotnetVersionPluginId,
-                            dotnetVersionPlugin!.Plugin.DefaultOptions!)
-                    }
-                ), "Mock");
+                if (dotnetVersionPlugin != null)
+                {
+                    await definitionRepository.Insert(new CsDefinition(
+                        ".NET version",
+                        sourceGroupId,
+                        new[]
+                        {
+                            new CsDefinitionCheck("Obsolete versions", dotnetVersionPluginId,
+                                dotnetVersionPlugin.Plugin.DefaultOptions!)
+                        }
+                    ), "Mock");
+                }
             }
+            */
             // ------
 
 
