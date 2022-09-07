@@ -7,8 +7,6 @@ install:
 before_build:
   - gitversion /l console /output buildserver
   - nuget restore
-  - echo %DOCKER_USER%
-  - echo %DOCKER_PASS%
 
 environment:
   pack_params: -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output -p:Configuration=Release -p:ContinuousIntegrationBuild=true
@@ -19,15 +17,15 @@ environment:
 
 after_build:
   # Create NuGet packages
-  - dotnet pack CodeSniffer.Core\CodeSniffer.Core.csproj %pack_params% -p:Version=%GitVersion_NuGetVersion%
+  - ps: dotnet pack CodeSniffer.Core\CodeSniffer.Core.csproj $env:pack_params -p:Version=$env:GitVersion_NuGetVersion
   # Push artifacts
   - ps: Get-ChildItem output\*.nupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
   - ps: Get-ChildItem output\*.snupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
   # Build and push Docker image
-  - docker build -t mvrens/codesniffer:%GitVersion_NuGetVersion% -f CodeSniffer\bin\Release\net6.0\DockerFile .
-  - docker login -u="%DOCKER_USER%" -p="%DOCKER_PASS%"
-  - docker push mvrens/codesniffer:%GitVersion_NuGetVersion%"
-  - docker logout
+  - ps: docker build -t mvrens/codesniffer:$env:GitVersion_NuGetVersion -f CodeSniffer\bin\Release\net6.0\DockerFile .
+  - ps: docker login -u="$env:DOCKER_USER" -p="$env:DOCKER_PASS"
+  - ps: docker push mvrens/codesniffer:$env:GitVersion_NuGetVersion"
+  - ps: docker logout
 
 build:
   project: CodeSniffer.sln
