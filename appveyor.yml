@@ -23,7 +23,7 @@ after_build:
   - ps: Get-ChildItem output\*.snupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
   # Build and push Docker image
   - docker build -t mvrens/codesniffer:%GitVersion_NuGetVersion% -f CodeSniffer\bin\Release\net6.0\DockerFile .
-  - docker login -u="$env:DOCKER_USER" -p="$env:DOCKER_PASS"
+  - docker login -u="%DOCKER_USER%" -p="%DOCKER_PASS%"
   - docker push mvrens/codesniffer:%GitVersion_NuGetVersion%"
   - docker logout
 
