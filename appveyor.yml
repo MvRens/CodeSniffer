@@ -44,7 +44,9 @@ after_build:
 
   # Build and push Docker image
   - ps: |
-        Push-Location CodeSniffer\bin\Release\net6.0\
+        Copy-Item -Path "frontend" -Destination "CodeSniffer\bin\Release\net6.0\" -Recurse
+
+        Push-Location "CodeSniffer\bin\Release\net6.0\"
 
         $branchTag = $env:GitVersion_BranchName
         if ($branchTag -eq "master")
