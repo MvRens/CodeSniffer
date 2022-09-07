@@ -17,7 +17,7 @@ environment:
 
 after_build:
   # Create NuGet packages
-  - ps: dotnet pack CodeSniffer.Core\CodeSniffer.Core.csproj $env:pack_params -p:Version=$env:GitVersion_NuGetVersion
+  - dotnet pack CodeSniffer.Core\CodeSniffer.Core.csproj %pack_params% -p:Version=%GitVersion_NuGetVersion%
   # Push artifacts
   - ps: Get-ChildItem output\*.nupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
   - ps: Get-ChildItem output\*.snupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
