@@ -12,7 +12,7 @@ environment:
   pack_params: -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output -p:Configuration=Release -p:ContinuousIntegrationBuild=true
   DOCKER_USER: mvrens
   DOCKER_PASS:
-    secure: ol+rFY/8BLif5lS4b/KgKvru8mjwXcaddaVkDkfXJAU=
+    secure: OzXCaIRFu2JkvLlPAeHHM01yrDeFKQys3oZAeYe3q4Fp8Uqa4XTz/kCnq8fz9ceW
 
 after_build:
   # Create NuGet packages
