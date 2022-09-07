@@ -23,7 +23,7 @@ after_build:
   # Build and push Docker image
   - ps: docker build -t mvrens/codesniffer:$env:GitVersion_NuGetVersion -f CodeSniffer\bin\Release\net6.0\DockerFile .
   - ps: Write-Output $env:DOCKER_PASS | docker login -u="$env:DOCKER_USER" --password-stdin
-  - ps: docker push mvrens/codesniffer:$env:GitVersion_NuGetVersion"
+  - ps: docker push mvrens/codesniffer:$env:GitVersion_NuGetVersion
   - ps: docker logout
 
 build:
