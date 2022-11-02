@@ -235,6 +235,7 @@ namespace CodeSniffer.Sniffer
             {
                 checkRevisionsJob.SetProgress(revisionIndex, revisions.Count);
                 var revision = revisions[revisionIndex];
+                var context = new CsScanContext(revision.Branch);
 
                 if (await SkipRevision(checkRevisionsJob.Logger, sourceId, revision.Name, revision.Id, definitions))
                     continue;
@@ -246,7 +247,7 @@ namespace CodeSniffer.Sniffer
                 checkRevisionsJob.Logger.Information("Running scan jobs on {workingCopyPath}", workingCopyPath);
                 foreach (var definitionInfo in definitions)
                 {
-                    var result = await jobRunner.Execute(definitionInfo.DefinitionId, workingCopyPath, cancellationToken);
+                    var result = await jobRunner.Execute(definitionInfo.DefinitionId, workingCopyPath, context, cancellationToken);
                     var report = new CsScanReport(definitionInfo.DefinitionId, sourceId, revision.Id, revision.Name, revision.Branch, result.Checks
                         .Select(c => new CsScanReportCheck(c.PluginId, c.Name, c.Report))
                         .ToList());
@@ -481,6 +482,18 @@ namespace CodeSniffer.Sniffer
                 DefinitionId = definitionId;
                 SourceGroupId = sourceGroupId;
                 Version = version;
+            }
+        }
+
+
+        private class CsScanContext : ICsScanContext
+        {
+            public string BranchName { get; }
+
+
+            public CsScanContext(string branchName)
+            {
+                BranchName = branchName;
             }
         }
     }

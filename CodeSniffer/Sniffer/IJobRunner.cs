@@ -6,6 +6,6 @@ namespace CodeSniffer.Sniffer
 {
     public interface IJobRunner
     {
-        ValueTask<ICsJobResult> Execute(string definitionId, string workingCopyPath, CancellationToken cancellationToken);
+        ValueTask<ICsJobResult> Execute(string definitionId, string workingCopyPath, ICsScanContext context, CancellationToken cancellationToken);
     }
 }

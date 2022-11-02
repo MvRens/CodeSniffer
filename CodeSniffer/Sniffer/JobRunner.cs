@@ -28,7 +28,7 @@ namespace CodeSniffer.Sniffer
         }
 
 
-        public async ValueTask<ICsJobResult> Execute(string definitionId, string workingCopyPath, CancellationToken cancellationToken)
+        public async ValueTask<ICsJobResult> Execute(string definitionId, string workingCopyPath, ICsScanContext context, CancellationToken cancellationToken)
         {
             var runningJob = jobMonitor.Start(logger.ForContext("DefinitionId", definitionId), JobType.Scan, "TODO job name (include definition name?)");
 
@@ -56,7 +56,7 @@ namespace CodeSniffer.Sniffer
                 if (pluginLock.Plugin is ICsSnifferPlugin plugin)
                 {
                     var sniffer = plugin.Create(runningJob.Logger, check.Configuration);
-                    var report = await sniffer.Execute(workingCopyPath, cancellationToken);
+                    var report = await sniffer.Execute(workingCopyPath, context, cancellationToken);
 
                     checkReports.Add(new CsJobCheck(check.PluginId, check.Name, report ?? EmptyReport));
                 }
