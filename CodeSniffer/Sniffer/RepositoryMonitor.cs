@@ -16,7 +16,6 @@ using CodeSniffer.Repository.Source;
 using Serilog;
 using Serilog.Events;
 
-// TODO keep track of scanning jobs and their logs for frontend monitoring purposes
 // TODO scan for active branches to clean up every once in a while
 
 namespace CodeSniffer.Sniffer

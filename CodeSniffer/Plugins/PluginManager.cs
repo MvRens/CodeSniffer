@@ -9,12 +9,16 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using CodeSniffer.Core.Plugin;
+using ICSharpCode.SharpZipLib.Zip;
 using JetBrains.Annotations;
 using Nito.AsyncEx;
 using Serilog;
+using Exception = System.Exception;
 
 namespace CodeSniffer.Plugins
 {
+    internal delegate ValueTask BeforeLoadFunc(string? oldPluginPath, string newPluginPath);
+
     public class PluginManager : IPluginManager, IAsyncDisposable
     {
         private readonly ILogger logger;
@@ -69,12 +73,12 @@ namespace CodeSniffer.Plugins
                     #endif
                 }
                 
-                await LoadPlugin(pluginPath, manifestFilename);
+                await LoadPlugin(pluginPath, manifestFilename, null);
             }
         }
 
 
-        private async ValueTask LoadPlugin(string pluginPath, string manifestFilename)
+        private async ValueTask<bool> LoadPlugin(string pluginPath, string manifestFilename, BeforeLoadFunc? onBeforeLoad)
         {
             logger.Debug("Loading plugin from manifest {filename}", manifestFilename);
 
@@ -84,19 +88,19 @@ namespace CodeSniffer.Plugins
             if (manifest == null)
             {
                 logger.Error("Failed to parse manifest file {filename}", manifestFilename);
-                return;
+                return false;
             }
 
             if (manifest.ContainerId == Guid.Empty)
             {
                 logger.Error("No ContainerId defined in manifest file {filename}", manifestFilename);
-                return;
+                return false;
             }
 
             if (string.IsNullOrWhiteSpace(manifest.EntryPoint))
             {
                 logger.Error("No EntryPoint defined in manifest file {filename}", manifestFilename);
-                return;
+                return false;
             }
 
             var basePath = Path.GetDirectoryName(manifestFilename)!;
@@ -104,26 +108,29 @@ namespace CodeSniffer.Plugins
             if (!assemblyFilename.StartsWith(basePath))
             {
                 logger.Error("Entry point must be contained to the manifest's folder in manifest file {filename}", manifestFilename);
-                return;
+                return false;
             }
 
             if (!File.Exists(assemblyFilename))
             {
                 logger.Error("Entry point {assemblyPath} not found in manifest file {filename}", assemblyFilename, manifestFilename);
-                return;
+                return false;
             }
 
             try
             {
                 var loadedAssembly = loadedAssemblies.GetOrAdd(manifest.ContainerId, _ => new LoadedAssembly(manifest.ContainerId));
-                var assemblyPlugins = await loadedAssembly.Load(logger, pluginPath, assemblyFilename);
+                var assemblyPlugins = await loadedAssembly.Load(logger, pluginPath, assemblyFilename, onBeforeLoad);
 
                 foreach (var assemblyPlugin in assemblyPlugins)
                     loadedPlugins.AddOrUpdate(assemblyPlugin.Key, assemblyPlugin.Value, (_, _) => assemblyPlugin.Value);
+
+                return true;
             }
             catch (Exception e)
             {
                 logger.Error("Error while loading plugin {filename}: {message}", assemblyFilename, e.Message);
+                return false;
             }
         }
 
@@ -163,9 +170,91 @@ namespace CodeSniffer.Plugins
         }
 
 
-        public ValueTask Update(Stream pluginZip)
+        public async ValueTask Update(Stream pluginZip)
         {
-            throw new NotImplementedException();
+            var zip = new ZipFile(pluginZip);
+
+            if (zip.GetEntry(ManifestFilename) == null)
+                throw new Exception($"Missing {ManifestFilename} in plugin ZIP");
+
+            // Extract the new plugin first
+            var extractPath = Path.GetFullPath(Path.Combine(pluginsPath, Guid.NewGuid().ToString("N")));
+            var checkedPaths = new HashSet<string>();
+
+            try
+            {
+                foreach (ZipEntry entry in zip)
+                {
+                    var entryName = Path.DirectorySeparatorChar != '/'
+                        ? entry.Name.Replace('/', Path.DirectorySeparatorChar)
+                        : entry.Name;
+
+                    var entryFilename = Path.Combine(extractPath, entryName);
+                    var entryPath = entry.IsDirectory ? entryFilename : Path.GetDirectoryName(entryFilename);
+
+                    if (entryPath != null && checkedPaths.Add(entryPath))
+                        Directory.CreateDirectory(entryPath);
+
+                    if (entry.IsDirectory)
+                        continue;
+
+                    await using var reader = zip.GetInputStream(entry);
+                    await using var writer = File.Create(entryFilename);
+                    await reader.CopyToAsync(writer);
+                }
+
+
+                if (!await LoadPlugin(extractPath, Path.Combine(extractPath, ManifestFilename),
+                    (oldPluginPath, pluginPath) =>
+                    {
+                        if (oldPluginPath == null || oldPluginPath == pluginPath)
+                            return ValueTask.CompletedTask;
+
+                        return TryDeleteOldPlugin(oldPluginPath);
+                    }))
+                {
+                    Directory.Delete(extractPath, true);
+
+                    // Not ideal, but good enough for now so you can at least see something went wrong in the UI
+                    throw new Exception("Failed to load plugin, see log for more information");
+                }
+            }
+            catch
+            {
+                if (Directory.Exists(extractPath))
+                    Directory.Delete(extractPath, true);
+
+                throw;
+            }
+        }
+
+
+        private async ValueTask TryDeleteOldPlugin(string path)
+        {
+            var attempt = 0;
+
+            while (true)
+            {
+                try
+                {
+                    Directory.Delete(path, true);
+                    return;
+                }
+                catch
+                {
+                    attempt++;
+                    if (attempt >= 5)
+                    {
+                        logger.Error("Failed to delete replaced plugin from {path}", path);
+                        return;
+                    }
+
+                    var retryInterval = (int)Math.Pow(2, attempt);
+
+                    logger.Debug("Failed to delete replaced plugin from {path}, will retry in {retryInterval} seconds", path, retryInterval);
+                    await Task.Delay(TimeSpan.FromSeconds(retryInterval));
+                }
+            }
         }
 
 
@@ -181,6 +270,7 @@ namespace CodeSniffer.Plugins
         {
             private readonly Guid containerId;
 
+            private string? currentPluginPath;
             private readonly AsyncReaderWriterLock pluginAssemblyLock = new();
             private Assembly? pluginAssembly;
             private PluginLoadContext? pluginContext;
@@ -194,11 +284,18 @@ namespace CodeSniffer.Plugins
             }
 
 
-            public async ValueTask<IReadOnlyList<KeyValuePair<Guid, ICsPluginInfo>>> Load(ILogger logger, string pluginPath, string assemblyFilename)
+            public async ValueTask<IReadOnlyList<KeyValuePair<Guid, ICsPluginInfo>>> Load(ILogger logger, string pluginPath, string assemblyFilename, BeforeLoadFunc? onBeforeLoad)
             {
                 using (await pluginAssemblyLock.WriterLockAsync())
                 {
-                    return LoadLocked(logger, pluginPath, assemblyFilename);
+                    UnloadLocked();
+                    
+                    if (onBeforeLoad != null)
+                        await onBeforeLoad(currentPluginPath, pluginPath);
+
+                    currentPluginPath = pluginPath;
+
+                    return LoadLocked(logger, assemblyFilename);
                 }
             }
 
@@ -212,24 +309,13 @@ namespace CodeSniffer.Plugins
             }
 
 
-            public async ValueTask Reload(ILogger logger, string pluginPath, string assemblyFilename, Func<ValueTask> onBeforeLoad)
-            {
-                using (await pluginAssemblyLock.WriterLockAsync())
-                {
-                    UnloadLocked();
-                    await onBeforeLoad();
-                    LoadLocked(logger, pluginPath, assemblyFilename);
-                }
-            }
-
-
             internal async ValueTask<IDisposable> AcquireReadLock()
             {
                 return await pluginAssemblyLock.ReaderLockAsync();
             }
 
 
-            private IReadOnlyList<KeyValuePair<Guid, ICsPluginInfo>> LoadLocked(ILogger logger, string pluginPath, string assemblyFilename)
+            private IReadOnlyList<KeyValuePair<Guid, ICsPluginInfo>> LoadLocked(ILogger logger, string assemblyFilename)
             {
                 if (pluginContext != null)
                     return loadedPlugins.Select(p => new KeyValuePair<Guid, ICsPluginInfo>(p.Key, p.Value)).ToArray();
@@ -256,21 +342,19 @@ namespace CodeSniffer.Plugins
                     foreach (var pluginType in pluginClasses)
                     {
                         var pluginAttribute = pluginType.GetCustomAttribute<CsPluginAttribute>()!;
-                        if (loadedPlugins.ContainsKey(pluginAttribute.Id))
-                            continue;
-
                         if (!pluginType.IsAssignableTo(typeof(ICsPlugin)))
                         {
-                            logger.Error(
-                                "Plugin class {className} in {filename} has CsPlugin attribute, but does not implement the required ICsPlugin interface and was skipped",
-                                pluginType.Name, assemblyFilename);
+                            logger.Error("Plugin class {className} in {filename} has CsPlugin attribute, but does not implement the required ICsPlugin interface and was skipped", pluginType.Name, assemblyFilename);
                             continue;
                         }
 
-                        var loadedPlugin = new LoadedPlugin(this, pluginPath, containerId, pluginAttribute.Id, pluginAttribute.Name, pluginType);
-                        loadedPlugin.Load();
+                        if (!loadedPlugins.TryGetValue(pluginAttribute.Id, out var loadedPlugin))
+                        {
+                            loadedPlugin = new LoadedPlugin(this, containerId, pluginAttribute.Id, pluginAttribute.Name);
+                            loadedPlugins.Add(pluginAttribute.Id, loadedPlugin);
+                        }
 
-                        loadedPlugins.Add(pluginAttribute.Id, loadedPlugin);
+                        loadedPlugin.Load(pluginType);
                     }
                 }
                 else
@@ -287,7 +371,10 @@ namespace CodeSniffer.Plugins
                 foreach (var plugin in loadedPlugins.Values)
                     plugin.Unload();
 
+
+                // TODO there is still a lock on the .dll after this, figure out why
                 pluginContext?.Unload();
+                pluginContext = null;
             }
         }
 
@@ -299,20 +386,16 @@ namespace CodeSniffer.Plugins
             public Guid ContainerId { get; }
 
             private readonly LoadedAssembly ownerAssembly;
-            private readonly string pluginPath;
-            private readonly Type pluginType;
             private ICsPlugin? pluginInstance;
 
 
-            public LoadedPlugin(LoadedAssembly ownerAssembly, string pluginPath, Guid containerId, Guid id, string name, Type pluginType)
+            public LoadedPlugin(LoadedAssembly ownerAssembly, Guid containerId, Guid id, string name)
             {
                 this.ownerAssembly = ownerAssembly;
-                this.pluginPath = pluginPath;
 
                 Id = id;
                 Name = name;
                 ContainerId = containerId;
-                this.pluginType = pluginType;
             }
 
 
@@ -328,11 +411,8 @@ namespace CodeSniffer.Plugins
             }
 
 
-            internal void Load()
+            internal void Load(Type pluginType)
             {
-                if (pluginInstance != null)
-                    return;
-
                 pluginInstance = (ICsPlugin)Activator.CreateInstance(pluginType)!;
             }
 
