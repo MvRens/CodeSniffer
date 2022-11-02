@@ -7,7 +7,7 @@ namespace CodeSniffer
 {
     public class AppSettings
     {
-        public string[] PluginPaths { get; set; }
+        public string PluginsPath { get; set; }
 
         public AppSettingsWebAPI WebAPI { get; } = new();
         public AppSettingsLog Log { get; } = new();
@@ -34,7 +34,7 @@ namespace CodeSniffer
                 p = v => v.ToLower();
             }
 
-            PluginPaths = new[] { Path.Combine(appDataPath, p(@"Plugins")) };
+            PluginsPath = Path.Combine(appDataPath, p(@"Plugins"));
             DbConnectionString = Path.Combine(appDataPath, p(@"CodeSniffer.litedb"));
             CheckoutPath = Path.Combine(Path.GetTempPath(), p(@"CodeSniffer"));
         }

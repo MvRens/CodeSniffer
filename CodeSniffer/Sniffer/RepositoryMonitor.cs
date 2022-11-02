@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using CodeSniffer.Core.Sniffer;
@@ -70,16 +71,16 @@ namespace CodeSniffer.Sniffer
         }
 
 
-        public void Initialize(IEnumerable<CsStoredSource> sources, IEnumerable<CsStoredSourceGroup> sourceGroups, IEnumerable<CsStoredDefinition> definitions)
+        public async ValueTask Initialize(IEnumerable<CsStoredSource> sources, IEnumerable<CsStoredSourceGroup> sourceGroups, IEnumerable<CsStoredDefinition> definitions)
         {
             if (monitorTask != null)
                 throw new InvalidOperationException("Initialized must be called exactly once");
 
             foreach (var source in sources)
             {
-                var sourceCodeRepository = GetSourceCodeRepository(source);
-                if (sourceCodeRepository != null)
-                    cachedSources.TryAdd(source.Id, new CachedSource(source.Name, sourceCodeRepository));
+                var sourceCodeRepositoryPluginInfo = await GetSourceCodeRepositoryPluginInfo(source);
+                if (sourceCodeRepositoryPluginInfo != null)
+                    cachedSources.TryAdd(source.Id, new CachedSource(source.Name, source.Configuration, sourceCodeRepositoryPluginInfo));
             }
 
             foreach (var sourceGroup in sourceGroups)
@@ -108,12 +109,12 @@ namespace CodeSniffer.Sniffer
         }
 
 
-        public void SourceChanged(string id, CsSource newSource)
+        public async ValueTask SourceChanged(string id, CsSource newSource)
         {
-            var sourceCodeRepository = GetSourceCodeRepository(newSource);
-            if (sourceCodeRepository != null)
+            var sourceCodeRepositoryPluginInfo = await GetSourceCodeRepositoryPluginInfo(newSource);
+            if (sourceCodeRepositoryPluginInfo != null)
             {
-                var source = new CachedSource(newSource.Name, sourceCodeRepository);
+                var source = new CachedSource(newSource.Name, newSource.Configuration, sourceCodeRepositoryPluginInfo);
                 cachedSources.AddOrUpdate(id, source, (_, _) => source);
             }
 
@@ -161,8 +162,14 @@ namespace CodeSniffer.Sniffer
                         using var checkRevisionsJob = jobMonitor.Start(logger, JobType.CheckRevisions, string.Format(Strings.JobNameScan, groupedRepository.Source.Name));
                         try
                         {
-                            var newRevisions = await Scan(checkRevisionsJob, groupedRepository.SourceId, groupedRepository.Source.Repository, groupedRepository.Definitions, cancellationToken);
+                            await using var pluginLock = await groupedRepository.Source.RepositoryPluginInfo.Acquire();
+                            var sourceCodeRepositoryPlugin = ((ICsSourceCodeRepositoryPlugin)pluginLock.Plugin).Create(logger, groupedRepository.Source.Configuration);
+
+                            var newRevisions = await Scan(checkRevisionsJob, groupedRepository.SourceId, sourceCodeRepositoryPlugin, groupedRepository.Definitions, cancellationToken);
                             Interlocked.Add(ref totalNewRevisions, newRevisions);
+                        }
+                        catch (OperationCanceledException)
+                        {
                         }
                         catch (Exception e)
                         {
@@ -245,24 +252,50 @@ namespace CodeSniffer.Sniffer
                         .ToList());
 
                     await reportFacade.StoreReport(report);
+                    cancellationToken.ThrowIfCancellationRequested();
                 }
 
                 await sourceCodeStatusRepository.StoreRevision(sourceId, revision.Id, definitions.Select(d => new RevisionDefinition(d.DefinitionId, d.Version)).ToList());
                 newRevisions++;
 
-                try
-                {
-                    checkRevisionsJob.Logger.Debug("Removing working copy at {workingCopyPath}", workingCopyPath);
-                    Directory.Delete(workingCopyPath, true);
-                }
-                catch (Exception e)
-                {
-                    checkRevisionsJob.Logger.Warning(e, "Failed to remove working copy path {workingCopyPath}", workingCopyPath);
-                }
+                DeleteWorkingCopy(checkRevisionsJob.Logger, workingCopyPath);
             }
 
             checkRevisionsJob.SetProgress(revisions.Count, revisions.Count);
             return newRevisions;
+        }
+
+
+        private static void DeleteWorkingCopy(ILogger logger, string workingCopyPath)
+        {
+            try
+            {
+                logger.Debug("Removing working copy at {workingCopyPath}", workingCopyPath);
+                DeleteDirectory(workingCopyPath);
+            }
+            catch (Exception e)
+            {
+                logger.Warning(e, "Failed to remove working copy path {workingCopyPath}", workingCopyPath);
+            }
+        }
+
+
+        // https://github.com/libgit2/libgit2sharp/issues/1354#issuecomment-277936895
+        private static void DeleteDirectory(string directory)
+        {
+            foreach (var subdirectory in Directory.EnumerateDirectories(directory))
+                DeleteDirectory(subdirectory);
+
+            foreach (var fileName in Directory.EnumerateFiles(directory))
+            {
+                var fileInfo = new FileInfo(fileName)
+                {
+                    Attributes = FileAttributes.Normal
+                };
+                fileInfo.Delete();
+            }
+
+            Directory.Delete(directory);
         }
 
 
@@ -304,10 +337,15 @@ namespace CodeSniffer.Sniffer
         }
 
 
-        private ICsSourceCodeRepository? GetSourceCodeRepository(CsSource source)
+        private async ValueTask<ICsPluginInfo?> GetSourceCodeRepositoryPluginInfo(CsSource source)
         {
-            return pluginManager.ById(source.PluginId)?.Plugin is ICsSourceCodeRepositoryPlugin plugin 
-                ? plugin.Create(logger, source.Configuration)
+            var pluginInfo = pluginManager.ById(source.PluginId);
+            if (pluginInfo == null)
+                return null;
+
+            await using var pluginLock = await pluginInfo.Acquire();
+            return pluginLock.Plugin is ICsSourceCodeRepositoryPlugin
+                ? pluginInfo
                 : null;
         }
 
@@ -349,13 +387,15 @@ namespace CodeSniffer.Sniffer
         private class CachedSource
         {
             public string Name { get; }
-            public ICsSourceCodeRepository Repository { get; }
+            public JsonObject Configuration { get; }
+            public ICsPluginInfo RepositoryPluginInfo { get; }
 
 
-            public CachedSource(string name, ICsSourceCodeRepository repository)
+            public CachedSource(string name, JsonObject configuration, ICsPluginInfo repositoryPluginInfo)
             {
                 Name = name;
-                Repository = repository;
+                Configuration = configuration;
+                RepositoryPluginInfo = repositoryPluginInfo;
             }
         }
 

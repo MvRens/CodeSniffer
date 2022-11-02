@@ -46,8 +46,8 @@ namespace CodeSniffer
                 var appSettings = LoadAppSettings();
                 logger = CreateLogger(appSettings);
 
-                pluginManager = new PluginManager(logger);
-                pluginManager.Initialize(appSettings.PluginPaths);
+                pluginManager = new PluginManager(logger, appSettings.PluginsPath);
+                await pluginManager.Initialize();
 
 
                 /*
@@ -114,7 +114,8 @@ namespace CodeSniffer
                 if (container != null)
                     await container.DisposeAsync();
 
-                pluginManager?.Dispose();
+                if (pluginManager != null)
+                    await pluginManager.DisposeAsync();
 
                 logger?.Information("Stopping logging...");
                 (logger as Logger)?.Dispose();

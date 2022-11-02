@@ -26,14 +26,14 @@ namespace CodeSniffer.Facade
             var sourceGroups = await sourceRepository.GetAllSourceGroups();
             var definitions = await definitionRepository.GetAllDetails();
 
-            repositoryMonitor.Initialize(sources, sourceGroups, definitions);
+            await repositoryMonitor.Initialize(sources, sourceGroups, definitions);
         }
 
 
         public async ValueTask<string> InsertSource(CsSource newSource, string author)
         {
             var id = await sourceRepository.InsertSource(newSource, author);
-            repositoryMonitor.SourceChanged(id, newSource);
+            await repositoryMonitor.SourceChanged(id, newSource);
             return id;
         }
 
@@ -41,7 +41,7 @@ namespace CodeSniffer.Facade
         public async ValueTask UpdateSource(string id, CsSource newSource, string author)
         {
             await sourceRepository.UpdateSource(id, newSource, author);
-            repositoryMonitor.SourceChanged(id, newSource);
+            await repositoryMonitor.SourceChanged(id, newSource);
         }
 
 

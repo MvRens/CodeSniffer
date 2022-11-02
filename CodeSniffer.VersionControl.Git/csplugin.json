@@ -1,3 +1,4 @@
 ﻿{
+  "ContainerId": "adf02351-fa33-4a2f-8e0a-fb7fea82a071",
   "EntryPoint": "CodeSniffer.SourceCodeRepository.Git.dll"
 }

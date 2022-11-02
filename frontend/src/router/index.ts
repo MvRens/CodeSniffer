@@ -13,6 +13,7 @@ import Source from '@/views/Source.vue';
 import SourceGroup from '@/views/SourceGroup.vue';
 import Users from '@/views/Users.vue';
 import User from '@/views/User.vue';
+import Plugins from '@/views/Plugins.vue';
 import Status from '@/views/Status.vue';
 
 const routes: Array<RouteRecordRaw> = [
@@ -138,6 +139,12 @@ const routes: Array<RouteRecordRaw> = [
         props: true
       }
     ]
+  },
+
+  {
+    path: '/plugins',
+    name: 'Plugins',
+    component: Plugins
   },
 
   {

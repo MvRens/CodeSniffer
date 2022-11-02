@@ -1,79 +1,84 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 using CodeSniffer.Core.Plugin;
 using JetBrains.Annotations;
+using Nito.AsyncEx;
 using Serilog;
 
 namespace CodeSniffer.Plugins
 {
-    public class PluginManager : IPluginManager, IDisposable
+    public class PluginManager : IPluginManager, IAsyncDisposable
     {
         private readonly ILogger logger;
-        private readonly Dictionary<Guid, LoadedPlugin> loadedPlugins = new();
+        private readonly string pluginsPath;
+        private readonly ConcurrentDictionary<Guid, LoadedAssembly> loadedAssemblies = new();
+        private readonly ConcurrentDictionary<Guid, ICsPluginInfo> loadedPlugins = new();
 
-        //private string[]? pluginPaths;
+        private const string ManifestFilename = "csplugin.json";
 
 
-        public PluginManager(ILogger logger)
+        public PluginManager(ILogger logger, string pluginsPath)
         {
             this.logger = logger;
+            this.pluginsPath = pluginsPath;
         }
 
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
             GC.SuppressFinalize(this);
-            UnloadPlugins();
-        }
 
-        private void UnloadPlugins()
-        {
-            foreach (var loadedPlugin in loadedPlugins.Values)
-                loadedPlugin.Unload();
+            foreach (var loadedAssembly in loadedAssemblies.Values)
+                await loadedAssembly.Unload();
 
             loadedPlugins.Clear();
+            loadedAssemblies.Clear();
         }
 
 
-        // ReSharper disable once ParameterHidesMember
-        public void Initialize(string[] pluginPaths)
+        public async ValueTask Initialize()
         {
-            // TODO monitor paths for changes and reload automatically - be careful with plugin references though, only reload when the service is not using any plugin
-            //this.pluginPaths = pluginPaths;
+            logger.Debug("Scanning path {path} for plugins", pluginsPath);
 
-            UnloadPlugins();
-            
-            foreach (var path in pluginPaths)
-                LoadPlugins(path);
-        }
-
-
-        private void LoadPlugins(string path)
-        {
-            logger.Debug("Scanning path {path} for plugins", path);
-
-            if (!Directory.Exists(path))
+            if (!Directory.Exists(pluginsPath))
             {
-                logger.Warning("Plugin path {path} does not exist, skipping", path);
+                logger.Warning("Plugin path {path} does not exist, skipping", pluginsPath);
                 return;
             }
 
-            foreach (var manifestFilename in Directory.GetFiles(path, "csplugin.json", SearchOption.AllDirectories))
-                LoadPlugin(manifestFilename);
+            foreach (var pluginPath in Directory.EnumerateDirectories(pluginsPath))
+            {
+                var manifestFilename = Path.Combine(pluginPath, ManifestFilename);
+                if (!File.Exists(manifestFilename))
+                {
+                    #if DEBUG
+                    // For debug builds, allow one extra subdirectory
+                    manifestFilename = Path.Combine(pluginPath, @"Debug", ManifestFilename);
+                    if (!File.Exists(manifestFilename))
+                        continue;
+                    #else
+                    continue;
+                    #endif
+                }
+                
+                await LoadPlugin(pluginPath, manifestFilename);
+            }
         }
 
 
-        private void LoadPlugin(string manifestFilename)
+        private async ValueTask LoadPlugin(string pluginPath, string manifestFilename)
         {
             logger.Debug("Loading plugin from manifest {filename}", manifestFilename);
 
-            using var manifestStream = new FileStream(manifestFilename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            await using var manifestStream = new FileStream(manifestFilename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             var manifest = JsonSerializer.Deserialize<Manifest>(manifestStream);
 
             if (manifest == null)
@@ -82,9 +87,15 @@ namespace CodeSniffer.Plugins
                 return;
             }
 
+            if (manifest.ContainerId == Guid.Empty)
+            {
+                logger.Error("No ContainerId defined in manifest file {filename}", manifestFilename);
+                return;
+            }
+
             if (string.IsNullOrWhiteSpace(manifest.EntryPoint))
             {
-                logger.Error("No entry point defined in manifest file {filename}", manifestFilename);
+                logger.Error("No EntryPoint defined in manifest file {filename}", manifestFilename);
                 return;
             }
 
@@ -104,62 +115,11 @@ namespace CodeSniffer.Plugins
 
             try
             {
-                var pluginContext = new PluginLoadContext(assemblyFilename);
+                var loadedAssembly = loadedAssemblies.GetOrAdd(manifest.ContainerId, _ => new LoadedAssembly(manifest.ContainerId));
+                var assemblyPlugins = await loadedAssembly.Load(logger, pluginPath, assemblyFilename);
 
-                // Always map CodeSniffer.Core to our version
-                var coreAssembly = typeof(ICsPlugin).Assembly;
-                var coreAssemblyName = coreAssembly.GetName().Name;
-
-                pluginContext.Resolving += (_, name) => name.Name == coreAssemblyName ? coreAssembly : null;
-
-                var keepContext = false;
-                try
-                {
-                    var pluginAssembly = pluginContext.LoadFromAssemblyPath(assemblyFilename);
-
-                    var pluginClasses = pluginAssembly
-                        .GetTypes()
-                        .Where(t => t.GetCustomAttribute<CsPluginAttribute>() != null)
-                        .ToList();
-
-                    if (pluginClasses.Count > 0)
-                    {
-                        logger.Information("{count} plugins found in {filename}", pluginClasses.Count,
-                            assemblyFilename);
-
-                        foreach (var pluginType in pluginClasses)
-                        {
-                            var pluginAttribute = pluginType.GetCustomAttribute<CsPluginAttribute>()!;
-                            if (loadedPlugins.ContainsKey(pluginAttribute.Id))
-                            {
-                                logger.Warning("Duplicate plugin name {name}, version from {filename} skipped",
-                                    pluginAttribute.Id, assemblyFilename);
-                                continue;
-                            }
-
-                            if (!pluginType.IsAssignableTo(typeof(ICsPlugin)))
-                            {
-                                logger.Error(
-                                    "Plugin class {className} in {filename} has CsPlugin attribute, but does not implement the required ICsPlugin interface and was skipped",
-                                    pluginType.Name, assemblyFilename);
-                                continue;
-                            }
-
-                            var pluginInstance = (ICsPlugin)Activator.CreateInstance(pluginType)!;
-                            loadedPlugins.Add(pluginAttribute.Id, new LoadedPlugin(pluginContext, new PluginInfo(pluginAttribute.Id, pluginInstance)));
-                            keepContext = true;
-                        }
-                    }
-                    else
-                    {
-                        logger.Warning("No plugins found in {filename}", assemblyFilename);
-                    }
-                }
-                finally
-                {
-                    if (!keepContext)
-                        pluginContext.Unload();
-                }
+                foreach (var assemblyPlugin in assemblyPlugins)
+                    loadedPlugins.AddOrUpdate(assemblyPlugin.Key, assemblyPlugin.Value, (_, _) => assemblyPlugin.Value);
             }
             catch (Exception e)
             {
@@ -170,7 +130,7 @@ namespace CodeSniffer.Plugins
 
         public IEnumerator<ICsPluginInfo> GetEnumerator()
         {
-            return loadedPlugins.Values.Select(p => p.Info).GetEnumerator();
+            return loadedPlugins.Values.GetEnumerator();
         }
 
 
@@ -183,56 +143,227 @@ namespace CodeSniffer.Plugins
         public ICsPluginInfo? ById(Guid id)
         {
             return loadedPlugins.TryGetValue(id, out var loadedPlugin)
-                ? loadedPlugin.Info
+                ? loadedPlugin
                 : null;
         }
 
 
-        public IEnumerable<ICsPluginInfo> ByType<T>() where T : ICsPlugin
+        public async IAsyncEnumerable<ICsPluginInfo> ByType<T>() where T : ICsPlugin
         {
-            return loadedPlugins.Values
-                .Where(p => p.Info.Plugin.GetType().IsAssignableTo(typeof(T)))
-                .Select(p => p.Info)
-                .ToList();
+            foreach (var loadedPlugin in loadedPlugins.Values)
+            {
+                await using (var pluginLock = await loadedPlugin.Acquire())
+                {
+                    if (!pluginLock.Plugin.GetType().IsAssignableTo(typeof(T)))
+                        continue;
+                }
+
+                yield return loadedPlugin;
+            }
+        }
+
+
+        public ValueTask Update(Stream pluginZip)
+        {
+            throw new NotImplementedException();
         }
 
 
         [JsonSerializable(typeof(Manifest))]
         private class Manifest
         {
+            public Guid ContainerId { get; [UsedImplicitly] set; }
             public string? EntryPoint { get; [UsedImplicitly] set; }
         }
 
 
-        private readonly struct LoadedPlugin
+        private class LoadedAssembly
         {
-            private readonly PluginLoadContext loadContext;
-            public ICsPluginInfo Info { get; }
+            private readonly Guid containerId;
+
+            private readonly AsyncReaderWriterLock pluginAssemblyLock = new();
+            private Assembly? pluginAssembly;
+            private PluginLoadContext? pluginContext;
+            
+            private readonly Dictionary<Guid, LoadedPlugin> loadedPlugins = new();
 
 
-            public LoadedPlugin(PluginLoadContext loadContext, ICsPluginInfo info)
+            public LoadedAssembly(Guid containerId)
             {
-                this.loadContext = loadContext;
-                Info = info;
+                this.containerId = containerId;
             }
 
-            public void Unload()
+
+            public async ValueTask<IReadOnlyList<KeyValuePair<Guid, ICsPluginInfo>>> Load(ILogger logger, string pluginPath, string assemblyFilename)
             {
-                loadContext.Unload();
+                using (await pluginAssemblyLock.WriterLockAsync())
+                {
+                    return LoadLocked(logger, pluginPath, assemblyFilename);
+                }
+            }
+
+
+            public async ValueTask Unload()
+            {
+                using (await pluginAssemblyLock.WriterLockAsync())
+                {
+                    UnloadLocked();
+                }
+            }
+
+
+            public async ValueTask Reload(ILogger logger, string pluginPath, string assemblyFilename, Func<ValueTask> onBeforeLoad)
+            {
+                using (await pluginAssemblyLock.WriterLockAsync())
+                {
+                    UnloadLocked();
+                    await onBeforeLoad();
+                    LoadLocked(logger, pluginPath, assemblyFilename);
+                }
+            }
+
+
+            internal async ValueTask<IDisposable> AcquireReadLock()
+            {
+                return await pluginAssemblyLock.ReaderLockAsync();
+            }
+
+
+            private IReadOnlyList<KeyValuePair<Guid, ICsPluginInfo>> LoadLocked(ILogger logger, string pluginPath, string assemblyFilename)
+            {
+                if (pluginContext != null)
+                    return loadedPlugins.Select(p => new KeyValuePair<Guid, ICsPluginInfo>(p.Key, p.Value)).ToArray();
+
+                pluginContext = new PluginLoadContext(assemblyFilename);
+
+                // Always map CodeSniffer.Core to our version
+                var coreAssembly = typeof(ICsPlugin).Assembly;
+                var coreAssemblyName = coreAssembly.GetName().Name;
+
+                pluginContext.Resolving += (_, name) => name.Name == coreAssemblyName ? coreAssembly : null;
+                pluginAssembly = pluginContext.LoadFromAssemblyPath(assemblyFilename);
+
+                var pluginClasses = pluginAssembly
+                    .GetTypes()
+                    .Where(t => t.GetCustomAttribute<CsPluginAttribute>() != null)
+                    .ToList();
+
+                if (pluginClasses.Count > 0)
+                {
+                    logger.Information("{count} plugins found in {filename}", pluginClasses.Count,
+                        assemblyFilename);
+
+                    foreach (var pluginType in pluginClasses)
+                    {
+                        var pluginAttribute = pluginType.GetCustomAttribute<CsPluginAttribute>()!;
+                        if (loadedPlugins.ContainsKey(pluginAttribute.Id))
+                            continue;
+
+                        if (!pluginType.IsAssignableTo(typeof(ICsPlugin)))
+                        {
+                            logger.Error(
+                                "Plugin class {className} in {filename} has CsPlugin attribute, but does not implement the required ICsPlugin interface and was skipped",
+                                pluginType.Name, assemblyFilename);
+                            continue;
+                        }
+
+                        var loadedPlugin = new LoadedPlugin(this, pluginPath, containerId, pluginAttribute.Id, pluginAttribute.Name, pluginType);
+                        loadedPlugin.Load();
+
+                        loadedPlugins.Add(pluginAttribute.Id, loadedPlugin);
+                    }
+                }
+                else
+                {
+                    logger.Warning("No plugins found in {filename}", assemblyFilename);
+                }
+
+                return loadedPlugins.Select(p => new KeyValuePair<Guid, ICsPluginInfo>(p.Key, p.Value)).ToArray();
+            }
+
+    
+            private void UnloadLocked()
+            {
+                foreach (var plugin in loadedPlugins.Values)
+                    plugin.Unload();
+
+                pluginContext?.Unload();
             }
         }
 
 
-        private class PluginInfo : ICsPluginInfo
+        private class LoadedPlugin : ICsPluginInfo
         {
             public Guid Id { get; }
+            public string Name { get; }
+            public Guid ContainerId { get; }
+
+            private readonly LoadedAssembly ownerAssembly;
+            private readonly string pluginPath;
+            private readonly Type pluginType;
+            private ICsPlugin? pluginInstance;
+
+
+            public LoadedPlugin(LoadedAssembly ownerAssembly, string pluginPath, Guid containerId, Guid id, string name, Type pluginType)
+            {
+                this.ownerAssembly = ownerAssembly;
+                this.pluginPath = pluginPath;
+
+                Id = id;
+                Name = name;
+                ContainerId = containerId;
+                this.pluginType = pluginType;
+            }
+
+
+            public async ValueTask<ICsPluginLock> Acquire()
+            {
+                var acquiredLock = await ownerAssembly.AcquireReadLock();
+                if (pluginInstance != null) 
+                    return new LoadedPluginLock(pluginInstance, acquiredLock);
+
+                acquiredLock.Dispose();
+                throw new PluginUnloadedException(Id, $"Plugin {Id} is unloaded and can not be acquired");
+
+            }
+
+
+            internal void Load()
+            {
+                if (pluginInstance != null)
+                    return;
+
+                pluginInstance = (ICsPlugin)Activator.CreateInstance(pluginType)!;
+            }
+
+
+            internal void Unload()
+            {
+                pluginInstance = null;
+            }
+        }
+
+
+        private class LoadedPluginLock : ICsPluginLock
+        {
             public ICsPlugin Plugin { get; }
 
+            private readonly IDisposable acquiredLock;
 
-            public PluginInfo(Guid id, ICsPlugin plugin)
+
+            public LoadedPluginLock(ICsPlugin plugin, IDisposable acquiredLock)
             {
+                this.acquiredLock = acquiredLock;
                 Plugin = plugin;
-                Id = id;
+            }
+
+
+            public ValueTask DisposeAsync()
+            {
+                GC.SuppressFinalize(this);
+                acquiredLock.Dispose();
+
+                return default;
             }
         }
     }

@@ -12,7 +12,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CodeSniffer.Repository.Lite
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CodeSniffer.Authentication", "CodeSniffer.Authentication\CodeSniffer.Authentication.csproj", "{32AA9C4F-FB9F-4C66-827A-9158D6BF22DB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeSniffer.Repository", "CodeSniffer.Repository\CodeSniffer.Repository.csproj", "{DA747495-81AD-46DF-931C-3A2676EC836C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CodeSniffer.Repository", "CodeSniffer.Repository\CodeSniffer.Repository.csproj", "{DA747495-81AD-46DF-931C-3A2676EC836C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

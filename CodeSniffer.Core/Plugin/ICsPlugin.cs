@@ -1,6 +1,5 @@
 ﻿using System.Globalization;
 using System.Text.Json.Nodes;
-using JetBrains.Annotations;
 
 namespace CodeSniffer.Core.Plugin
 {
@@ -12,12 +11,6 @@ namespace CodeSniffer.Core.Plugin
     /// </remarks>
     public interface ICsPlugin
     {
-        /// <summary>
-        /// The name of the plugin for display purposes.
-        /// </summary>
-        string Name { get; }
-
-
         /// <summary>
         /// The default options displayed when adding this plugin in the UI.
         /// </summary>

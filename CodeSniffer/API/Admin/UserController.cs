@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CodeSniffer.API.Admin
 {
     [Route("/api/users")]
+    [Authorize(Policy = CsPolicyNames.Admins)]
     public class UserController : ControllerBase
     {
         private readonly IUserRepository userRepository;
@@ -23,7 +24,6 @@ namespace CodeSniffer.API.Admin
 
 
         [HttpGet]
-        [Authorize(Policy = CsPolicyNames.Admins)]
         public async ValueTask<IEnumerable<ListUserViewModel>> List()
         {
             var definitions = await userRepository.List();
@@ -34,7 +34,6 @@ namespace CodeSniffer.API.Admin
 
 
         [HttpGet("roles")]
-        [Authorize(Policy = CsPolicyNames.Admins)]
         public IEnumerable<RoleViewModel> Roles()
         {
             return CsRoleNames.Info.Select(r => new RoleViewModel(r.Id, r.DisplayName));
@@ -43,7 +42,6 @@ namespace CodeSniffer.API.Admin
 
 
         [HttpGet("{id}")]
-        [Authorize(Policy = CsPolicyNames.Admins)]
         public async ValueTask<ActionResult<DefinitionViewModel>> GetDetails(string id)
         {
             try
@@ -66,7 +64,6 @@ namespace CodeSniffer.API.Admin
 
 
         [HttpPost]
-        [Authorize(Policy = CsPolicyNames.Admins)]
         public async ValueTask<ActionResult<string>> InsertDetails([FromBody] UserInsertViewModel viewModel)
         {
             var user = ViewModelToUser(viewModel);
@@ -76,7 +73,6 @@ namespace CodeSniffer.API.Admin
 
 
         [HttpPut("{id}")]
-        [Authorize(Policy = CsPolicyNames.Admins)]
         public async ValueTask<ActionResult> UpdateDetails(string id, [FromBody] UserUpdateViewModel viewModel)
         {
             var user = ViewModelToUser(viewModel);
@@ -105,7 +101,6 @@ namespace CodeSniffer.API.Admin
 
 
         [HttpDelete("{id}")]
-        [Authorize(Policy = CsPolicyNames.Admins)]
         public async ValueTask<ActionResult> Delete(string id)
         {
             // TODO prevent deletion of logged in user

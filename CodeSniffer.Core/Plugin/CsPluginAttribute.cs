@@ -21,11 +21,19 @@ namespace CodeSniffer.Core.Plugin
         public Guid Id { get; }
 
 
+        /// <summary>
+        /// The display name of the plugin.
+        /// </summary>
+        public string Name { get; }
+
+
         /// <inheritdoc />
         /// <param name="guid">Must be a valid GUID string. Presented as string to allow for a compile-time constant.</param>
-        public CsPluginAttribute(string guid)
+        /// <param name="name"></param>
+        public CsPluginAttribute(string guid, string name)
         {
             Id = Guid.Parse(guid);
+            Name = name;
         }
     }
 }

@@ -7,10 +7,9 @@ using Serilog;
 
 namespace CodeSniffer.SourceCodeRepository.Git
 {
-    [CsPlugin("a7c87e17-10eb-4c69-b515-9eff5710d457")]
+    [CsPlugin("a7c87e17-10eb-4c69-b515-9eff5710d457", "Git")]
     public class GitCsSourceCodeRepositoryPlugin : ICsSourceCodeRepositoryPlugin, ICsPluginHelp
     {
-        public string Name => "Git";
         public JsonObject? DefaultOptions => JsonSerializer.SerializeToNode(GitCsSourceCodeRepositoryOptions.Default()) as JsonObject;
 
 

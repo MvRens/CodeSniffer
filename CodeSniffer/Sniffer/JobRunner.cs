@@ -38,12 +38,22 @@ namespace CodeSniffer.Sniffer
 
             for (var checkIndex = 0; checkIndex < definition.Checks.Count; checkIndex++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 runningJob.SetProgress(checkIndex, definition.Checks.Count);
 
                 var check = definition.Checks[checkIndex];
                 runningJob.Logger.Debug("Constructing plugin {pluginId} for check {checkName}", check.PluginId, check.Name);
 
-                if (pluginManager.ById(check.PluginId)?.Plugin is ICsSnifferPlugin plugin)
+                var pluginInfo = pluginManager.ById(check.PluginId);
+                if (pluginInfo == null)
+                {
+                    checkReports.Add(ReportInvalidPlugin(logger, check));
+                    continue;
+                }
+
+                await using var pluginLock = await pluginInfo.Acquire();
+
+                if (pluginLock.Plugin is ICsSnifferPlugin plugin)
                 {
                     var sniffer = plugin.Create(runningJob.Logger, check.Configuration);
                     var report = await sniffer.Execute(workingCopyPath, cancellationToken);
@@ -51,22 +61,26 @@ namespace CodeSniffer.Sniffer
                     checkReports.Add(new CsJobCheck(check.PluginId, check.Name, report ?? EmptyReport));
                 }
                 else
-                {
-                    runningJob.Logger.Error("Not a valid sniffer plugin: {pluginId}", check.PluginId);
-
-                    checkReports.Add(new CsJobCheck(
-                        check.PluginId,
-                        check.Name, 
-                        CsReportBuilder.Create()
-                            .AddAsset("invalidPlugin." + check.PluginId, check.Name)
-                                .SetResult(CsReportResult.Error)
-                                .SetSummary("Not a valid sniffer plugin")
-                            .Build()));
-                }
+                    checkReports.Add(ReportInvalidPlugin(logger, check));
             }
 
             runningJob.SetProgress(definition.Checks.Count, definition.Checks.Count);
             return new CsJobResult(checkReports);
+        }
+
+
+        private static CsJobCheck ReportInvalidPlugin(ILogger logger, CsDefinitionCheck check)
+        {
+            logger.Error("Not a valid sniffer plugin: {pluginId}", check.PluginId);
+
+            return new CsJobCheck(
+                check.PluginId,
+                check.Name,
+                CsReportBuilder.Create()
+                    .AddAsset("invalidPlugin." + check.PluginId, check.Name)
+                    .SetResult(CsReportResult.Error)
+                    .SetSummary("Not a valid sniffer plugin")
+                    .Build());
         }
 
 

@@ -5,6 +5,7 @@ using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using CodeSniffer.Auth;
 using CodeSniffer.Core.Plugin;
+using CodeSniffer.Core.Sniffer;
 using CodeSniffer.Core.Source;
 using CodeSniffer.Facade;
 using CodeSniffer.Plugins;
@@ -189,15 +190,18 @@ namespace CodeSniffer.API.Definition
 
         [HttpGet("plugins")]
         [Authorize(Policy = CsPolicyNames.Developers)]
-        public IEnumerable<PluginViewModel> Plugins()
+        public async IAsyncEnumerable<PluginViewModel> Plugins()
         {
-            return pluginManager
-                .ByType<ICsSourceCodeRepositoryPlugin>()
-                .Select(pluginInfo => new PluginViewModel(pluginInfo.Id, pluginInfo.Plugin.Name,
-                    pluginInfo.Plugin.DefaultOptions?.ToDisplayJsonString(),
-                    pluginInfo.Plugin is ICsPluginHelp pluginHelp ? pluginHelp.GetOptionsHelpHtml(Request.Cultures()) : null)
-                )
-                .ToArray();
+            await foreach (var pluginInfo in pluginManager.ByType<ICsSourceCodeRepositoryPlugin>())
+            {
+                await using var pluginLock = await pluginInfo.Acquire();
+
+                yield return new PluginViewModel(pluginInfo.Id, pluginInfo.Name,
+                    pluginLock.Plugin.DefaultOptions?.ToDisplayJsonString(),
+                    pluginLock.Plugin is ICsPluginHelp pluginHelp
+                        ? pluginHelp.GetOptionsHelpHtml(Request.Cultures())
+                        : null);
+            }
         }
 
 
