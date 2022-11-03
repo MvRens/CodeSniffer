@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -13,11 +14,10 @@ using ICSharpCode.SharpZipLib.Zip;
 using JetBrains.Annotations;
 using Nito.AsyncEx;
 using Serilog;
-using Exception = System.Exception;
 
 namespace CodeSniffer.Plugins
 {
-    internal delegate ValueTask BeforeLoadFunc(string? oldPluginPath, string newPluginPath);
+    internal delegate ValueTask BeforeLoadFunc(string? oldPluginPath, string newPluginPath, Func<ValueTask> waitForUnload);
 
     public class PluginManager : IPluginManager, IAsyncDisposable
     {
@@ -205,12 +205,12 @@ namespace CodeSniffer.Plugins
 
 
                 if (!await LoadPlugin(extractPath, Path.Combine(extractPath, ManifestFilename),
-                    (oldPluginPath, pluginPath) =>
+                    (oldPluginPath, pluginPath, waitForUnload) =>
                     {
-                        if (oldPluginPath == null || oldPluginPath == pluginPath)
-                            return ValueTask.CompletedTask;
+                        if (oldPluginPath != null && oldPluginPath != pluginPath)
+                            TryDeleteOldPlugin(oldPluginPath, waitForUnload);
 
-                        return TryDeleteOldPlugin(oldPluginPath);
+                        return ValueTask.CompletedTask;
                     }))
                 {
                     Directory.Delete(extractPath, true);
@@ -229,32 +229,39 @@ namespace CodeSniffer.Plugins
         }
 
 
-        private async ValueTask TryDeleteOldPlugin(string path)
+        private void TryDeleteOldPlugin(string path, Func<ValueTask> waitForUnload)
         {
-            var attempt = 0;
-
-            while (true)
+            Task.Run(async () =>
             {
+                logger.Debug("Waiting for replaced plugin from {path} to unload", path);
+
+                var stopwatch = new Stopwatch();
+                stopwatch.Start();
+
                 try
                 {
-                    Directory.Delete(path, true);
-                    return;
+                    await waitForUnload();
+
+                    stopwatch.Stop();
+                    logger.Debug("Unloaded replaced plugin from {path} in {elapsed} seconds", path, stopwatch.Elapsed.TotalSeconds);
                 }
                 catch
                 {
-                    attempt++;
-                    if (attempt >= 5)
-                    {
-                        logger.Error("Failed to delete replaced plugin from {path}", path);
-                        return;
-                    }
-
-                    var retryInterval = (int)Math.Pow(2, attempt);
-
-                    logger.Debug("Failed to delete replaced plugin from {path}, will retry in {retryInterval} seconds", path, retryInterval);
-                    await Task.Delay(TimeSpan.FromSeconds(retryInterval));
+                    stopwatch.Stop();
+                    logger.Error("Failed to unload replaced plugin from {path} after {elapsed} seconds", path, stopwatch.Elapsed.TotalSeconds);
+                    return;
                 }
-            }
+
+                try
+                {
+                    Directory.Delete(path, true);
+                    logger.Information("Deleted replaced plugin from {path}", path);
+                }
+                catch
+                {
+                    logger.Error("Failed to delete replaced plugin from {path}", path);
+                }
+            });
         }
 
 
@@ -274,7 +281,8 @@ namespace CodeSniffer.Plugins
             private readonly AsyncReaderWriterLock pluginAssemblyLock = new();
             private Assembly? pluginAssembly;
             private PluginLoadContext? pluginContext;
-            
+            private WeakReference? pluginContextWeakReference;
+
             private readonly Dictionary<Guid, LoadedPlugin> loadedPlugins = new();
 
 
@@ -291,7 +299,7 @@ namespace CodeSniffer.Plugins
                     UnloadLocked();
                     
                     if (onBeforeLoad != null)
-                        await onBeforeLoad(currentPluginPath, pluginPath);
+                        await onBeforeLoad(currentPluginPath, pluginPath, WaitForUnload);
 
                     currentPluginPath = pluginPath;
 
@@ -309,6 +317,27 @@ namespace CodeSniffer.Plugins
             }
 
 
+            private ValueTask WaitForUnload()
+            {
+                if (pluginContextWeakReference == null)
+                    return ValueTask.CompletedTask;
+
+                for (var attempt = 0; attempt < 10 && pluginContextWeakReference.IsAlive; attempt++)
+                {
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                }
+
+                // In testing it shows the context is still alive, but deleting the assembly still works, so
+                // for now we'll assume the garbage collection did it's job. Worst case the csplugin.json should've
+                // been removed which prevents the old plugin from being loaded anyways after a restart.
+                //if (pluginContextWeakReference.IsAlive)
+                    //throw new Exception("Failed to unload plugin context");
+
+                return ValueTask.CompletedTask;
+            }
+
+
             internal async ValueTask<IDisposable> AcquireReadLock()
             {
                 return await pluginAssemblyLock.ReaderLockAsync();
@@ -321,6 +350,7 @@ namespace CodeSniffer.Plugins
                     return loadedPlugins.Select(p => new KeyValuePair<Guid, ICsPluginInfo>(p.Key, p.Value)).ToArray();
 
                 pluginContext = new PluginLoadContext(assemblyFilename);
+                pluginContextWeakReference = new WeakReference(pluginContext);
 
                 // Always map CodeSniffer.Core to our version
                 var coreAssembly = typeof(ICsPlugin).Assembly;
@@ -371,8 +401,7 @@ namespace CodeSniffer.Plugins
                 foreach (var plugin in loadedPlugins.Values)
                     plugin.Unload();
 
-
-                // TODO there is still a lock on the .dll after this, figure out why
+                pluginAssembly = null;
                 pluginContext?.Unload();
                 pluginContext = null;
             }
@@ -426,20 +455,23 @@ namespace CodeSniffer.Plugins
 
         private class LoadedPluginLock : ICsPluginLock
         {
-            public ICsPlugin Plugin { get; }
+            public ICsPlugin Plugin => plugin ?? throw new ObjectDisposedException(nameof(ICsPluginLock));
 
+            private ICsPlugin? plugin;
             private readonly IDisposable acquiredLock;
 
 
             public LoadedPluginLock(ICsPlugin plugin, IDisposable acquiredLock)
             {
                 this.acquiredLock = acquiredLock;
-                Plugin = plugin;
+                this.plugin = plugin;
             }
 
 
             public ValueTask DisposeAsync()
             {
+                plugin = null;
+
                 GC.SuppressFinalize(this);
                 acquiredLock.Dispose();
 
