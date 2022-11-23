@@ -44,7 +44,7 @@ en:
 </i18n>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, defineProps } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import ReportResultLine from '@/components/ReportResultLine.vue';

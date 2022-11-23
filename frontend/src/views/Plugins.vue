@@ -19,11 +19,13 @@
               <li v-for="plugin in container.plugins" :key="plugin.id">{{ plugin.name }}</li>
             </ul>
           </div>
+          <!--
           <div class="buttons">
             <button v-if="confirmDeleteId !== container.id" @click="confirmDeletePlugin(container.id)" class="button">{{ t('delete') }}</button>
             <button v-if="confirmDeleteId === container.id" @click="deletePlugin(container.id)" class="button button-danger">{{ t('delete') }}</button>            
             <button v-if="confirmDeleteId === container.id" @click="cancelDeletePlugin()" class="button">{{ t('cancelDelete') }}</button>            
           </div>
+          -->
         </template>
       </div>
 
@@ -114,6 +116,7 @@ async function loadPlugins()
 }
 
 
+/*
 const confirmDeleteId = ref<string>();
 
 function confirmDeletePlugin(id: string)
@@ -141,6 +144,7 @@ async function deletePlugin(id: string)
 
   confirmDeleteId.value = undefined;
 }
+*/
 
 
 async function uploadPlugins()
@@ -208,7 +212,7 @@ async function uploadPlugin(file: File, uploadFile: IUploadFile)
 .plugins
 {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: auto;
   align-items: center;
   margin-bottom: 3rem;
 

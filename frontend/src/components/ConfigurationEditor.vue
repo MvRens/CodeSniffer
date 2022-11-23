@@ -3,7 +3,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, defineProps, defineEmits, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import JSONEditor from 'jsoneditor';
 
 const props = defineProps({
