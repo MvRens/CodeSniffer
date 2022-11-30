@@ -26,7 +26,7 @@ jobs:
           useConfigFile: true
 
       - name: Determine branch tag name
-        run:
+        run: |
           BRANCH_TAG="${{ steps.gitversion.outputs.branchName }}"
           echo "Branch name: $BRANCH_TAG"
 
