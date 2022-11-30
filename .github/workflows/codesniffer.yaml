@@ -38,7 +38,7 @@ jobs:
         run: dotnet build --configuration Release --no-restore
 
       - name: Create NuGet package
-        run: dotnet pack CodeSniffer.Core\CodeSniffer.Core.csproj $NUGET_PACK_PARAMS -p:Version=${{ steps.gitversion.outputs.nuGetVersion }}
+        run: dotnet pack CodeSniffer.Core/CodeSniffer.Core.csproj $NUGET_PACK_PARAMS -p:Version=${{ steps.gitversion.outputs.nuGetVersion }}
 
       - name: Set Node.js 16.x
         uses: actions/setup-node@v3
@@ -59,7 +59,7 @@ jobs:
 
       - name: Create Docker image
         run: docker build -t mvrens/codesniffer:${{ steps.gitversion.outputs.nuGetVersion }} -t mvrens/codesniffer:$BRANCH_TAG .
-        working-directory: CodeSniffer\bin\Release\net7.0\
+        working-directory: CodeSniffer/bin/Release/net7.0/
 
       - name: Log in to Docker Hub
         uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
