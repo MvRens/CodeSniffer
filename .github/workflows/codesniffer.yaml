@@ -46,6 +46,11 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
+      - name: Copy built-in plugins
+        run: |
+          mkdir -p CodeSniffer/bin/Release/net7.0/builtin/git
+          cp -R CodeSniffer.SourceCodeRepository.Git/bin/Release/net7.0/* CodeSniffer/bin/Release/net7.0/builtin/git/
+
       - name: Create NuGet package
         run: dotnet pack CodeSniffer.Core/CodeSniffer.Core.csproj $NUGET_PACK_PARAMS -p:Version=${{ steps.gitversion.outputs.nuGetVersion }}
 

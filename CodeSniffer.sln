@@ -6,7 +6,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CodeSniffer", "CodeSniffer\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CodeSniffer.Core", "CodeSniffer.Core\CodeSniffer.Core.csproj", "{AFDC33B7-36F5-4467-8748-13264171E94D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CodeSniffer.SourceCodeRepository.Git", "CodeSniffer.VersionControl.Git\CodeSniffer.SourceCodeRepository.Git.csproj", "{E9A1A430-8F98-4571-A44C-09365975E264}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CodeSniffer.SourceCodeRepository.Git", "CodeSniffer.SourceCodeRepository.Git\CodeSniffer.SourceCodeRepository.Git.csproj", "{E9A1A430-8F98-4571-A44C-09365975E264}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CodeSniffer.Repository.LiteDB", "CodeSniffer.Repository.LiteDB\CodeSniffer.Repository.LiteDB.csproj", "{76013C00-1D58-4B94-B90D-F666D1D07122}"
 EndProject

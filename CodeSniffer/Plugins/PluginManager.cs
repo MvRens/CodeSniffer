@@ -50,15 +50,25 @@ namespace CodeSniffer.Plugins
 
         public async ValueTask Initialize()
         {
-            logger.Debug("Scanning path {path} for plugins", pluginsPath);
+            var executablePath = Path.GetDirectoryName(Assembly.GetEntryAssembly()!.Location)!;
+            var builtinPath = Path.Combine(executablePath, @"builtin");
 
-            if (!Directory.Exists(pluginsPath))
+            await LoadPlugins(builtinPath);
+            await LoadPlugins(pluginsPath);
+        }
+
+
+        private async ValueTask LoadPlugins(string path)
+        {
+            logger.Debug("Scanning path {path} for plugins", path);
+
+            if (!Directory.Exists(path))
             {
-                logger.Warning("Plugin path {path} does not exist, skipping", pluginsPath);
+                logger.Warning("Plugin path {path} does not exist, skipping", path);
                 return;
             }
 
-            foreach (var pluginPath in Directory.EnumerateDirectories(pluginsPath))
+            foreach (var pluginPath in Directory.EnumerateDirectories(path))
             {
                 var manifestFilename = Path.Combine(pluginPath, ManifestFilename);
                 if (!File.Exists(manifestFilename))
@@ -72,9 +82,10 @@ namespace CodeSniffer.Plugins
                     continue;
                     #endif
                 }
-                
+
                 await LoadPlugin(pluginPath, manifestFilename, null);
             }
+
         }
 
 
