@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve --port 8000",
-    "build": "vue-cli-service build"
+    "build": "vue-cli-service build",
+    "build-prod": "vue-cli-service build --dest ../CodeSniffer/bin/Release/net7.0/frontend/dist/"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^6.1.2",

@@ -1,0 +1,86 @@
+name: CodeSniffer Build
+
+on:
+  push
+
+env:
+  NUGET_PACK_PARAMS: -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output -p:Configuration=Release -p:ContinuousIntegrationBuild=true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v0.9.15
+        with:
+          versionSpec: '5.x'
+
+      - name: Determine Version
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v0.9.15
+        with:
+          useConfigFile: true
+
+      - name: Determine branch tag name
+        run: |
+          BRANCH_TAG="${{ steps.gitversion.outputs.branchName }}"
+          echo "Branch name: $BRANCH_TAG"
+
+          BRANCH_TAG_CORRECTED=$(echo $BRANCH_TAG | sed 's/[^A-Za-z0-9\-\.]/-/' | sed 's/master/latest/')
+          echo "Corrected: $BRANCH_TAG_CORRECTED"
+
+          echo "branchTag=$BRANCH_TAG_CORRECTED" >> $GITHUB_ENV
+
+      - name: Setup .NET Core SDK 7
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 7
+
+      - name: Install dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Create NuGet package
+        run: dotnet pack CodeSniffer.Core/CodeSniffer.Core.csproj $NUGET_PACK_PARAMS -p:Version=${{ steps.gitversion.outputs.nuGetVersion }}
+
+      - name: Set Node.js 16.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16.x
+
+      - name: Run yarn install
+        uses: borales/actions-yarn@v4
+        with:
+          cmd: install
+          dir: frontend
+
+      - name: Build production bundle
+        uses: borales/actions-yarn@v4
+        with:
+          cmd: build-prod
+          dir: frontend
+
+      - name: Create Docker image
+        run: docker build -t mvrens/codesniffer:${{ steps.gitversion.outputs.nuGetVersion }} -t mvrens/codesniffer:${{ env.branchTag }} .
+        working-directory: CodeSniffer/bin/Release/net7.0/
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: mvrens
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v3
+        with:
+          context: CodeSniffer/bin/Release/net7.0/
+          push: true
+          tags: |
+            mvrens/codesniffer:${{ env.branchTag }}
+            mvrens/codesniffer:${{ steps.gitversion.outputs.nuGetVersion }}
