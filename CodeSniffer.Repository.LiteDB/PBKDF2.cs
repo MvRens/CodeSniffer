@@ -98,11 +98,7 @@ namespace CodeSniffer.Repository.LiteDB
         /// <returns>A hash of the password.</returns>
         protected static byte[] Compute(string password, byte[] salt, int iterations, int outputBytes)
         {
-            var pbkdf2 = new Rfc2898DeriveBytes(password, salt)
-            {
-                IterationCount = iterations
-            };
-
+            var pbkdf2 = new Rfc2898DeriveBytes(password, salt, iterations, HashAlgorithmName.SHA512);
             return pbkdf2.GetBytes(outputBytes);
         }
     }

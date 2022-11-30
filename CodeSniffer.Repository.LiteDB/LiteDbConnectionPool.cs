@@ -55,7 +55,6 @@ namespace CodeSniffer.Repository.LiteDB
         public async ValueTask<ILiteDbPooledConnection> Connect(string connectionString)
         {
             var requiresInitialization = false;
-            ILiteDatabase? database = null;
             Connection? connection;
 
             // ConcurrentDictionary.GetOrAdd garandeert niet dat valueFactory maar 1x wordt aangeroepen, en dat willen we hier wel.
@@ -64,7 +63,7 @@ namespace CodeSniffer.Repository.LiteDB
             {
                 if (!pool.TryGetValue(connectionString, out connection))
                 {
-                    database = new LiteDatabase(connectionString);
+                    var database = new LiteDatabase(connectionString);
                     connection = new Connection(database);
                     pool.Add(connectionString, connection);
 
@@ -72,16 +71,18 @@ namespace CodeSniffer.Repository.LiteDB
                 }
             }
 
+            var pooledConnection = await connection.Acquire(!requiresInitialization);
+
             // ReSharper disable once InvertIf
             if (requiresInitialization)
             {
                 if (OnInitializeDatabase != null)
-                    await OnInitializeDatabase.Invoke(database!, connectionString);
+                    await OnInitializeDatabase.Invoke(pooledConnection.Database, connectionString);
 
                 connection.Initialize();
             }
 
-            return await connection.Acquire();
+            return pooledConnection;
         }
 
 
@@ -128,9 +129,9 @@ namespace CodeSniffer.Repository.LiteDB
             }
 
 
-            public async ValueTask<ILiteDbPooledConnection> Acquire()
+            public async ValueTask<ILiteDbPooledConnection> Acquire(bool waitForInitialization)
             {
-                if (!initializedCompletionSource.Task.IsCompleted)
+                if (waitForInitialization && !initializedCompletionSource.Task.IsCompleted)
                     await initializedCompletionSource.Task;
 
                 Interlocked.Increment(ref referenceCount);
