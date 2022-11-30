@@ -63,11 +63,13 @@ after_deploy:
           $branchTag = "latest"
         }
 
-        docker build -t mvrens/codesniffer:$env:GitVersion_NuGetVersion -t mvrens/codesniffer:$branchTag .
+        $versionTag = $env:GitVersion_NuGetVersion
+
+        docker build -t mvrens/codesniffer:$versionTag -t mvrens/codesniffer:$branchTag .
 
         Write-Output $env:DOCKER_PASS | docker login -u="$env:DOCKER_USER" --password-stdin
-        docker push mvrens/codesniffer:$env:GitVersion_NuGetVersion
-        docker push mvrens/codesniffer:$branchTag
+        docker -l debug push mvrens/codesniffer:$versionTag
+        docker -l debug push mvrens/codesniffer:$branchTag
         docker logout
 
         Pop-Location
