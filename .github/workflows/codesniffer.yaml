@@ -72,5 +72,5 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ env${{ steps.gitversion.outputs.branchName == 'master' && 'latest' || steps.gitversion.outputs.branchName }} }}
+            ${{ steps.gitversion.outputs.branchName == 'master' && 'latest' || steps.gitversion.outputs.branchName }}
             ${{ steps.gitversion.outputs.nuGetVersion }}
