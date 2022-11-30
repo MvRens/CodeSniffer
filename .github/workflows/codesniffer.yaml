@@ -82,5 +82,5 @@ jobs:
           context: CodeSniffer/bin/Release/net7.0/
           push: true
           tags: |
-            ${{ env.branchTag }}
-            ${{ steps.gitversion.outputs.nuGetVersion }}
+            mvrens/codesniffer:${{ env.branchTag }}
+            mvrens/codesniffer:${{ steps.gitversion.outputs.nuGetVersion }}
