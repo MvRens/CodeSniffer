@@ -1,0 +1,73 @@
+name: CodeSniffer Build
+
+on:
+  push
+
+env:
+  NUGET_PACK_PARAMS: -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output -p:Configuration=Release -p:ContinuousIntegrationBuild=true
+  BRANCH_TAG: ${{ github.ref_name == 'master' && 'latest' || github.ref_name }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Get Git Version
+        uses: docker://gittools/gitversion:5.11.1-ubuntu.20.04-6.0
+        with:
+          args: /github/workspace /nofetch /exec /bin/sh /execargs "-c \"echo $GitVersion_NuGetVersion > /github/workspace/version.txt\""
+
+      - name: Read version file
+        id: getversion
+        run: echo "::set-output name=version::$(cat /github/workspace/version.txt)"          
+
+      - name: Setup .NET Core SDK 7
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 7
+
+      - name: Install dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Create NuGet package
+        run: dotnet pack CodeSniffer.Core\CodeSniffer.Core.csproj $NUGET_PACK_PARAMS -p:Version=${{ steps.getversion.outputs.version }}
+
+      - name: Set Node.js 16.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16.x
+
+      - name: Run yarn install
+        uses: borales/actions-yarn@v4
+        with:
+          cmd: install
+          dir: frontend
+
+      - name: Build production bundle
+        uses: borales/actions-yarn@v4
+        with:
+          cmd: build-prod
+          dir: frontend
+
+      - name: Create Docker image
+        run: docker build -t mvrens/codesniffer:${{ steps.getversion.outputs.version }} -t mvrens/codesniffer:$BRANCH_TAG .
+        working-directory: CodeSniffer\bin\Release\net7.0\
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}        
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.BRANCH_TAG }}
+            ${{ steps.getversion.outputs.version }}
