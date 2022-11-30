@@ -5,7 +5,6 @@ on:
 
 env:
   NUGET_PACK_PARAMS: -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output -p:Configuration=Release -p:ContinuousIntegrationBuild=true
-  BRANCH_TAG: ${{ github.ref_name == 'master' && 'latest' || github.ref_name }}
 
 jobs:
   build:
@@ -58,7 +57,7 @@ jobs:
           dir: frontend
 
       - name: Create Docker image
-        run: docker build -t mvrens/codesniffer:${{ steps.gitversion.outputs.nuGetVersion }} -t mvrens/codesniffer:$BRANCH_TAG .
+        run: docker build -t mvrens/codesniffer:${{ steps.gitversion.outputs.nuGetVersion }} -t mvrens/codesniffer:${{ steps.gitversion.outputs.branchName == 'master' && 'latest' || steps.gitversion.outputs.branchName }} .
         working-directory: CodeSniffer/bin/Release/net7.0/
 
       - name: Log in to Docker Hub
@@ -73,5 +72,5 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ env.BRANCH_TAG }}
+            ${{ env${{ steps.gitversion.outputs.branchName == 'master' && 'latest' || steps.gitversion.outputs.branchName }} }}
             ${{ steps.gitversion.outputs.nuGetVersion }}
