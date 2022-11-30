@@ -28,7 +28,11 @@ jobs:
       - name: Determine branch tag name
         run:
           BRANCH_TAG="${{ steps.gitversion.outputs.branchName }}"
+          echo "Branch name: $BRANCH_TAG"
+
           BRANCH_TAG_CORRECTED=$(echo $BRANCH_TAG | sed 's/[^A-Za-z0-9\-\.]/-/' | sed 's/master/latest/')
+          echo "Corrected: $BRANCH_TAG_CORRECTED"
+
           echo "branchTag=$BRANCH_TAG_CORRECTED" >> $GITHUB_ENV
 
       - name: Setup .NET Core SDK 7
