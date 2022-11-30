@@ -12,15 +12,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
-      - name: Get Git Version
-        uses: docker://gittools/gitversion:5.11.1-ubuntu.20.04-6.0
         with:
-          args: /github/workspace /nofetch /exec /bin/sh /execargs "-c \"echo $GitVersion_NuGetVersion > /github/workspace/version.txt\""
+          fetch-depth: 0
 
-      - name: Read version file
-        id: getversion
-        run: echo "::set-output name=version::$(cat /github/workspace/version.txt)"          
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v0.9.7
+        with:
+          versionSpec: '5.x'
+
+      - name: Determine Version
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v0.9.7
+        with:
+          useConfigFile: true
 
       - name: Setup .NET Core SDK 7
         uses: actions/setup-dotnet@v3
@@ -34,7 +38,7 @@ jobs:
         run: dotnet build --configuration Release --no-restore
 
       - name: Create NuGet package
-        run: dotnet pack CodeSniffer.Core\CodeSniffer.Core.csproj $NUGET_PACK_PARAMS -p:Version=${{ steps.getversion.outputs.version }}
+        run: dotnet pack CodeSniffer.Core\CodeSniffer.Core.csproj $NUGET_PACK_PARAMS -p:Version=${{ steps.gitversion.outputs.nuGetVersion }}
 
       - name: Set Node.js 16.x
         uses: actions/setup-node@v3
@@ -54,7 +58,7 @@ jobs:
           dir: frontend
 
       - name: Create Docker image
-        run: docker build -t mvrens/codesniffer:${{ steps.getversion.outputs.version }} -t mvrens/codesniffer:$BRANCH_TAG .
+        run: docker build -t mvrens/codesniffer:${{ steps.gitversion.outputs.nuGetVersion }} -t mvrens/codesniffer:$BRANCH_TAG .
         working-directory: CodeSniffer\bin\Release\net7.0\
 
       - name: Log in to Docker Hub
@@ -70,4 +74,4 @@ jobs:
           push: true
           tags: |
             ${{ env.BRANCH_TAG }}
-            ${{ steps.getversion.outputs.version }}
+            ${{ steps.gitversion.outputs.nuGetVersion }}
