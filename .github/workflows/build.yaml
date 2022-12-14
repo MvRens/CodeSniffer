@@ -4,7 +4,7 @@ on:
   push
 
 env:
-  NUGET_PACK_PARAMS: -v diag -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output -p:Configuration=Release -p:ContinuousIntegrationBuild=true
+  NUGET_PACK_PARAMS: -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output -p:Configuration=Release -p:ContinuousIntegrationBuild=true
 
 jobs:
   build:
@@ -55,7 +55,7 @@ jobs:
         run: dotnet pack CodeSniffer.Core/CodeSniffer.Core.csproj $NUGET_PACK_PARAMS -p:Version=${{ steps.gitversion.outputs.nuGetVersion }}
 
       - name: Create sniffer template package
-        run: dotnet pack CodeSniffer.Sniffer.Template/working/CodeSniffer.Sniffer.Template.csproj $NUGET_PACK_PARAMS -p:Version=${{ steps.gitversion.outputs.nuGetVersion }}
+        run: dotnet pack CodeSniffer.Sniffer.Template/working/CodeSniffer.Sniffer.Template.csproj -p:Version=${{ steps.gitversion.outputs.nuGetVersion }}
 
       - name: Publish NuGet packages
         run: dotnet nuget push ./output/*.nupkg -k ${NUGET_PUSH_API_KEY} -s https://api.nuget.org/v3/index.json --skip-duplicate
