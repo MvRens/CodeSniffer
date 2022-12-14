@@ -1,4 +1,4 @@
 {
   "ContainerId": "[ContainerId]",
-  "EntryPoint": "Sniffer.DotNetversion.dll"
+  "EntryPoint": "Sniffer.[Name].dll"
 }
