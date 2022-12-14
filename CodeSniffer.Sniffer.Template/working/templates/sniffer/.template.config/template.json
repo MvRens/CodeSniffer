@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "Mark van Renswoude",
+  "classifications": [ "CodeSniffer", "Sniffer" ],
+  "identity": "CodeSniffer.Sniffer.Template",
+  "name": "CodeSniffer Sniffer template",
+  "shortName": "sniffer",
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+
+  "symbols": {
+    "pluginName": {
+      "type": "parameter",
+      "dataType": "string",
+      "replaces": "[Name]",
+      "FileRename": "[Name]",
+      "defaultValue": "MySniffer"
+    },
+
+    "containerId": {
+      "type": "generated",
+      "generator": "guid",
+      "replaces": "[ContainerId]",
+      "parameters": {
+        "defaultFormat": "d"
+      }
+    },
+
+    "pluginId": {
+      "type": "generated",
+      "generator": "guid",
+      "replaces": "[PluginId]",
+      "parameters": {
+        "defaultFormat": "d"
+      }
+    },
+
+    "solutionId": {
+      "type": "generated",
+      "generator": "guid",
+      "replaces": "[SolutionId]"
+    },
+
+    "projectId": {
+      "type": "generated",
+      "generator": "guid",
+      "replaces": "[ProjectId]"
+    }
+  }
+}
